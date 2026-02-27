@@ -38,25 +38,85 @@ Deno.serve(async (req) => {
 
     const results = [];
 
-    for (const emailData of emails) {
-      // --- Normalize incoming structure ---
+    for (const rawData of emails) {
+      // --- Normalize Gmail / n8n structure ---
+      // n8n Gmail node typically sends fields like:
+      //   id, threadId, labelIds, snippet,
+      //   payload.headers (array of {name, value}),
+      //   payload.parts or payload.body,
+      //   internalDate, sizeEstimate
+      // It may also send a flattened version with:
+      //   from, to, subject, textPlain, textHtml, date, messageId
 
+      const isGmailRaw = rawData.payload?.headers || rawData.labelIds;
+      let emailData = rawData;
+
+      if (isGmailRaw) {
+        // Extract headers from Gmail API format
+        const headers = rawData.payload?.headers || [];
+        const getHeader = (name: string) =>
+          headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
+
+        // Decode body from Gmail parts
+        let bodyText = "";
+        const parts = rawData.payload?.parts || [];
+        const bodyData = rawData.payload?.body?.data;
+
+        if (bodyData) {
+          bodyText = atob(bodyData.replace(/-/g, "+").replace(/_/g, "/"));
+        } else {
+          for (const part of parts) {
+            if (part.mimeType === "text/plain" && part.body?.data) {
+              bodyText = atob(part.body.data.replace(/-/g, "+").replace(/_/g, "/"));
+              break;
+            }
+          }
+          // Fallback to html part
+          if (!bodyText) {
+            for (const part of parts) {
+              if (part.mimeType === "text/html" && part.body?.data) {
+                bodyText = atob(part.body.data.replace(/-/g, "+").replace(/_/g, "/"));
+                break;
+              }
+            }
+          }
+        }
+
+        // Flatten into our normalized shape
+        emailData = {
+          ...rawData,
+          from: getHeader("From") || rawData.from,
+          subject: getHeader("Subject") || rawData.subject || "",
+          body: bodyText || rawData.snippet || "",
+          message_id: getHeader("Message-ID") || rawData.id,
+          timestamp: rawData.internalDate
+            ? new Date(parseInt(rawData.internalDate)).toISOString()
+            : getHeader("Date") || new Date().toISOString(),
+        };
+      }
+
+      // --- Parse from/email fields ---
       let customer_name = emailData.customer_name || null;
       let customer_email = emailData.email || null;
-      let body = emailData.body || emailData.textPlain || "";
+      let body = emailData.body || emailData.textPlain || emailData.snippet || "";
 
-      // Handle Gmail-style "from"
-      if (!customer_email && emailData.from) {
-        const match = emailData.from.match(/(.*)<(.*)>/);
+      // Strip HTML tags if body looks like HTML
+      if (body.startsWith("<") || body.includes("<div") || body.includes("<p")) {
+        body = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      }
+
+      // Handle "Name <email>" format from Gmail
+      const fromField = emailData.from || emailData.From || "";
+      if (!customer_email && fromField) {
+        const match = fromField.match(/(.*)<(.*)>/);
         if (match) {
-          customer_name = match[1].trim();
+          customer_name = customer_name || match[1].trim().replace(/^"|"$/g, "");
           customer_email = match[2].trim();
         } else {
-          customer_email = emailData.from.trim();
+          customer_email = fromField.trim();
         }
       }
 
-      // Safety fallbacks
       if (!customer_name) {
         customer_name = customer_email || "Unknown Sender";
       }
@@ -65,22 +125,26 @@ Deno.serve(async (req) => {
         throw new Error("Missing customer email");
       }
 
+      // Build external_id from available identifiers
+      const externalId =
+        emailData.external_id ||
+        emailData.message_id ||
+        emailData.messageId ||
+        emailData["message-id"] ||
+        emailData.id ||
+        crypto.randomUUID();
+
       // Insert the email
       const { data: email, error: emailError } = await supabase
         .from("emails")
         .upsert(
           {
-            external_id:
-              emailData.external_id ||
-              emailData.message_id ||
-              emailData["message-id"] ||
-              emailData.id ||
-              crypto.randomUUID(),
+            external_id: externalId,
             customer_name,
             email: customer_email,
-            subject: emailData.subject,
+            subject: emailData.subject || "(No Subject)",
             body,
-            timestamp: emailData.timestamp || new Date().toISOString(),
+            timestamp: emailData.timestamp || emailData.date || new Date().toISOString(),
             sentiment: emailData.sentiment || "Neutral",
             sentiment_confidence: emailData.sentiment_confidence || 0,
             intent: emailData.intent || "General Question",
