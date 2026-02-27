@@ -39,6 +39,32 @@ Deno.serve(async (req) => {
     const results = [];
 
     for (const emailData of emails) {
+      // --- Normalize incoming structure ---
+
+      let customer_name = emailData.customer_name || null;
+      let customer_email = emailData.email || null;
+      let body = emailData.body || emailData.textPlain || "";
+
+      // Handle Gmail-style "from"
+      if (!customer_email && emailData.from) {
+        const match = emailData.from.match(/(.*)<(.*)>/);
+        if (match) {
+          customer_name = match[1].trim();
+          customer_email = match[2].trim();
+        } else {
+          customer_email = emailData.from.trim();
+        }
+      }
+
+      // Safety fallbacks
+      if (!customer_name) {
+        customer_name = customer_email || "Unknown Sender";
+      }
+
+      if (!customer_email) {
+        throw new Error("Missing customer email");
+      }
+
       // Insert the email
       const { data: email, error: emailError } = await supabase
         .from("emails")
