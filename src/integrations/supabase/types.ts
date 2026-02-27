@@ -36,10 +36,10 @@ export type Database = {
         Insert: {
           ai_reply_draft?: string | null
           attachments?: string[] | null
-          body: string
+          body?: string
           created_at?: string
-          customer_name: string
-          email: string
+          customer_name?: string
+          email?: string
           external_id?: string | null
           id?: string
           intent?: string | null
@@ -47,7 +47,7 @@ export type Database = {
           sentiment?: string | null
           sentiment_confidence?: number | null
           status?: string | null
-          subject: string
+          subject?: string
           timestamp?: string
           updated_at?: string
         }

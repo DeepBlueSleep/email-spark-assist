@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       }
 
       if (!customer_email) {
-        throw new Error("Missing customer email");
+        customer_email = "unknown@unknown.com";
       }
 
       // Build external_id from available identifiers
