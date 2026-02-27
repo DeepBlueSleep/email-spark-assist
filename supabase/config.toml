@@ -1,0 +1,10 @@
+project_id = "qnamtkdqqzchnnynaeli"
+
+[functions.webhook-email]
+verify_jwt = false
+
+[functions.webhook-ai-analysis]
+verify_jwt = false
+
+[functions.webhook-order-update]
+verify_jwt = false
