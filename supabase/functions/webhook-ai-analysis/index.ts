@@ -1,0 +1,129 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-webhook-secret",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  try {
+    const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
+    if (webhookSecret) {
+      const providedSecret = req.headers.get("x-webhook-secret");
+      if (providedSecret !== webhookSecret) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const payload = await req.json();
+
+    await supabase.from("webhook_logs").insert({
+      endpoint: "webhook-ai-analysis",
+      payload,
+    });
+
+    // Expects: { email_id or external_id, sentiment, sentiment_confidence, intent, intent_confidence, ai_reply_draft, extracted_order[], recommended_skus[] }
+    const emailId = payload.email_id;
+    const externalId = payload.external_id;
+
+    // Find the email
+    let query = supabase.from("emails").select("id");
+    if (emailId) {
+      query = query.eq("id", emailId);
+    } else if (externalId) {
+      query = query.eq("external_id", externalId);
+    } else {
+      return new Response(
+        JSON.stringify({ error: "email_id or external_id required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { data: emailRecord, error: findError } = await query.single();
+    if (findError || !emailRecord) {
+      return new Response(
+        JSON.stringify({ error: "Email not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const dbEmailId = emailRecord.id;
+
+    // Update AI analysis fields on the email
+    const updateFields: Record<string, any> = {};
+    if (payload.sentiment !== undefined) updateFields.sentiment = payload.sentiment;
+    if (payload.sentiment_confidence !== undefined) updateFields.sentiment_confidence = payload.sentiment_confidence;
+    if (payload.intent !== undefined) updateFields.intent = payload.intent;
+    if (payload.intent_confidence !== undefined) updateFields.intent_confidence = payload.intent_confidence;
+    if (payload.ai_reply_draft !== undefined) updateFields.ai_reply_draft = payload.ai_reply_draft;
+    if (payload.status !== undefined) updateFields.status = payload.status;
+
+    if (Object.keys(updateFields).length > 0) {
+      const { error: updateError } = await supabase
+        .from("emails")
+        .update(updateFields)
+        .eq("id", dbEmailId);
+      if (updateError) throw updateError;
+    }
+
+    // Replace extracted order if provided
+    if (payload.extracted_order?.length > 0) {
+      await supabase.from("order_items").delete().eq("email_id", dbEmailId);
+      const orderItems = payload.extracted_order.map((item: any) => ({
+        email_id: dbEmailId,
+        item_code: item.item_code,
+        item_name: item.item_name,
+        quantity: item.quantity || 1,
+        unit: item.unit || "units",
+        delivery_date: item.delivery_date || "",
+        delivery_address: item.delivery_address || "",
+        remarks: item.remarks || "",
+      }));
+      const { error } = await supabase.from("order_items").insert(orderItems);
+      if (error) throw error;
+    }
+
+    // Replace recommended SKUs if provided
+    if (payload.recommended_skus?.length > 0) {
+      await supabase.from("recommended_skus").delete().eq("email_id", dbEmailId);
+      const skus = payload.recommended_skus.map((sku: any) => ({
+        email_id: dbEmailId,
+        sku_code: sku.sku_code,
+        name: sku.name,
+        category: sku.category || "",
+        color: sku.color || "",
+        size: sku.size || "",
+        price: sku.price || 0,
+        stock_level: sku.stock_level || 0,
+        match_reason: sku.match_reason || "",
+        image_url: sku.image_url || "",
+      }));
+      const { error } = await supabase.from("recommended_skus").insert(skus);
+      if (error) throw error;
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, email_id: dbEmailId }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    console.error("AI analysis webhook error:", error);
+    return new Response(
+      JSON.stringify({ error: error.message || "Internal server error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
