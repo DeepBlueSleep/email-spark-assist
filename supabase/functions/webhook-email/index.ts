@@ -2,8 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-webhook-secret",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
 Deno.serve(async (req) => {
@@ -11,10 +10,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
     // Optional: verify webhook secret
@@ -48,11 +44,16 @@ Deno.serve(async (req) => {
         .from("emails")
         .upsert(
           {
-            external_id: emailData.external_id || emailData.id || null,
-            customer_name: emailData.customer_name,
-            email: emailData.email,
+            external_id:
+              emailData.external_id ||
+              emailData.message_id ||
+              emailData["message-id"] ||
+              emailData.id ||
+              crypto.randomUUID(),
+            customer_name,
+            email: customer_email,
             subject: emailData.subject,
-            body: emailData.body,
+            body,
             timestamp: emailData.timestamp || new Date().toISOString(),
             sentiment: emailData.sentiment || "Neutral",
             sentiment_confidence: emailData.sentiment_confidence || 0,
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
             status: emailData.status || "New",
             attachments: emailData.attachments || [],
           },
-          { onConflict: "external_id" }
+          { onConflict: "external_id" },
         )
         .select()
         .single();
@@ -82,9 +83,7 @@ Deno.serve(async (req) => {
           remarks: item.remarks || "",
         }));
 
-        const { error: orderError } = await supabase
-          .from("order_items")
-          .insert(orderItems);
+        const { error: orderError } = await supabase.from("order_items").insert(orderItems);
         if (orderError) throw orderError;
       }
 
@@ -103,22 +102,17 @@ Deno.serve(async (req) => {
           image_url: sku.image_url || "",
         }));
 
-        const { error: skuError } = await supabase
-          .from("recommended_skus")
-          .insert(skus);
+        const { error: skuError } = await supabase.from("recommended_skus").insert(skus);
         if (skuError) throw skuError;
       }
 
       results.push({ id: email.id, external_id: email.external_id });
     }
 
-    return new Response(
-      JSON.stringify({ success: true, emails: results }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ success: true, emails: results }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Webhook error:", error);
 
@@ -129,12 +123,9 @@ Deno.serve(async (req) => {
       error_message: String(error),
     });
 
-    return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
