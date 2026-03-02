@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.webhook-order-update]
 verify_jwt = false
+
+[functions.webhook-products]
+verify_jwt = false
+
+[functions.webhook-ai-reply]
+verify_jwt = false

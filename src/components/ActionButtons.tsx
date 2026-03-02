@@ -1,20 +1,78 @@
 import { useState } from "react";
 import { Email, Status } from "@/data/mockData";
-import { Check, Edit, HelpCircle, XCircle } from "lucide-react";
+import { Check, Edit, HelpCircle, XCircle, Send, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ActionButtonsProps {
   email: Email;
+  replyDraft: string;
+  selectedTone: string;
   onStatusChange: (id: string, status: Status) => void;
 }
 
-export function ActionButtons({ email, onStatusChange }: ActionButtonsProps) {
+export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange }: ActionButtonsProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showEscalate, setShowEscalate] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
   const [escalateReason, setEscalateReason] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [clarificationMsg, setClarificationMsg] = useState(
     `Dear ${email.customer_name},\n\nThank you for your email. We need some additional information to process your request:\n\n- [Please specify details]\n\nCould you please provide these details at your earliest convenience?\n\nBest regards,\nOrder Processing Team`
   );
+
+  const handleApproveAndSend = async () => {
+    setIsSending(true);
+    try {
+      // Update email status and store the approved reply
+      await supabase
+        .from("emails")
+        .update({
+          status: "Replied",
+          ai_reply_draft: replyDraft,
+        })
+        .eq("id", email.id);
+
+      onStatusChange(email.id, "Replied");
+      toast.success(`Reply sent to ${email.customer_name} (${selectedTone} tone)`);
+      setShowConfirm(false);
+    } catch (err) {
+      toast.error("Failed to send reply");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleRequestInfo = async () => {
+    try {
+      await supabase
+        .from("emails")
+        .update({ status: "Awaiting Customer" })
+        .eq("id", email.id);
+
+      onStatusChange(email.id, "Awaiting Customer");
+      toast.success("Information request sent");
+      setShowRequestInfo(false);
+    } catch {
+      toast.error("Failed to send request");
+    }
+  };
+
+  const handleEscalate = async () => {
+    if (!escalateReason.trim()) return;
+    try {
+      await supabase
+        .from("emails")
+        .update({ status: "Escalated" })
+        .eq("id", email.id);
+
+      onStatusChange(email.id, "Escalated");
+      toast.success("Email escalated");
+      setShowEscalate(false);
+    } catch {
+      toast.error("Failed to escalate");
+    }
+  };
 
   return (
     <div className="bg-card rounded-xl shadow-card p-6">
@@ -25,7 +83,7 @@ export function ActionButtons({ email, onStatusChange }: ActionButtonsProps) {
           onClick={() => setShowConfirm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-sentiment-positive text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
         >
-          <Check className="w-4 h-4" /> Approve & Send
+          <Send className="w-4 h-4" /> Approve & Send
         </button>
         <button
           onClick={() => onStatusChange(email.id, "Awaiting Review")}
@@ -47,18 +105,25 @@ export function ActionButtons({ email, onStatusChange }: ActionButtonsProps) {
         </button>
       </div>
 
-      {/* Confirm Modal */}
+      {/* Confirm Send Modal */}
       {showConfirm && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowConfirm(false)}>
-          <div className="bg-card rounded-xl shadow-elevated p-6 max-w-md w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <h4 className="text-lg font-semibold mb-2">Confirm Send</h4>
-            <p className="text-sm text-muted-foreground mb-4">Are you sure you want to approve and send this reply to {email.customer_name}?</p>
+          <div className="bg-card rounded-xl shadow-elevated p-6 max-w-lg w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-lg font-semibold mb-2">Confirm & Send Reply</h4>
+            <p className="text-sm text-muted-foreground mb-3">
+              Send this <span className="font-medium text-foreground">{selectedTone}</span> reply to <span className="font-medium text-foreground">{email.customer_name}</span>?
+            </p>
+            <div className="bg-secondary/50 rounded-lg p-4 max-h-48 overflow-y-auto mb-4">
+              <pre className="text-xs whitespace-pre-wrap font-sans text-foreground/80">{replyDraft}</pre>
+            </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
               <button
-                onClick={() => { onStatusChange(email.id, "Replied"); setShowConfirm(false); }}
-                className="px-4 py-2 text-sm rounded-lg bg-sentiment-positive text-primary-foreground hover:opacity-90"
+                onClick={handleApproveAndSend}
+                disabled={isSending}
+                className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-sentiment-positive text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
+                {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 Confirm & Send
               </button>
             </div>
@@ -79,10 +144,7 @@ export function ActionButtons({ email, onStatusChange }: ActionButtonsProps) {
             />
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setShowRequestInfo(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
-              <button
-                onClick={() => { onStatusChange(email.id, "Awaiting Customer"); setShowRequestInfo(false); }}
-                className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
-              >
+              <button onClick={handleRequestInfo} className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">
                 Send Request
               </button>
             </div>
@@ -106,7 +168,7 @@ export function ActionButtons({ email, onStatusChange }: ActionButtonsProps) {
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setShowEscalate(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
               <button
-                onClick={() => { if (escalateReason.trim()) { onStatusChange(email.id, "Escalated"); setShowEscalate(false); } }}
+                onClick={handleEscalate}
                 className="px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
                 disabled={!escalateReason.trim()}
               >

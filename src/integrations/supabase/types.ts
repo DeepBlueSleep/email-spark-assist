@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_reply_drafts: {
+        Row: {
+          created_at: string
+          draft: string
+          email_id: string
+          id: string
+          tone: string
+        }
+        Insert: {
+          created_at?: string
+          draft?: string
+          email_id: string
+          id?: string
+          tone?: string
+        }
+        Update: {
+          created_at?: string
+          draft?: string
+          email_id?: string
+          id?: string
+          tone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_reply_drafts_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emails: {
         Row: {
           ai_reply_draft: string | null
@@ -117,6 +149,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      products: {
+        Row: {
+          category: string
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          material: string | null
+          name: string
+          price: number | null
+          size: string | null
+          sku_code: string
+          stock_level: number | null
+          subcategory: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          material?: string | null
+          name: string
+          price?: number | null
+          size?: string | null
+          sku_code: string
+          stock_level?: number | null
+          subcategory?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          material?: string | null
+          name?: string
+          price?: number | null
+          size?: string | null
+          sku_code?: string
+          stock_level?: number | null
+          subcategory?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       recommended_skus: {
         Row: {
