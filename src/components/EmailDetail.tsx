@@ -15,6 +15,7 @@ interface EmailDetailProps {
 export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const [orderItems, setOrderItems] = useState<ExtractedOrderItem[]>(email.extracted_order);
   const [replyDraft, setReplyDraft] = useState(email.ai_reply_draft);
+  const [selectedTone, setSelectedTone] = useState("Professional");
 
   const handleAddSKUToOrder = (skuCode: string, skuName: string) => {
     const newItem: ExtractedOrderItem = {
@@ -84,10 +85,10 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
       )}
 
       {/* AI Reply */}
-      <AIReplyEditor draft={replyDraft} onChange={setReplyDraft} />
+      <AIReplyEditor emailId={email.id} draft={replyDraft} onChange={setReplyDraft} />
 
       {/* Actions */}
-      <ActionButtons email={email} onStatusChange={onStatusChange} />
+      <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} />
     </div>
   );
 }

@@ -1,14 +1,56 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageSquare, RefreshCw, ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AIReplyEditorProps {
+  emailId: string;
   draft: string;
   onChange: (text: string) => void;
 }
 
-export function AIReplyEditor({ draft, onChange }: AIReplyEditorProps) {
+interface DraftRecord {
+  tone: string;
+  draft: string;
+}
+
+export function AIReplyEditor({ emailId, draft, onChange }: AIReplyEditorProps) {
   const [tone, setTone] = useState("Professional");
   const [showExplanation, setShowExplanation] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [hasDrafts, setHasDrafts] = useState(false);
+
+  // Fetch multi-tone drafts from DB
+  useEffect(() => {
+    async function fetchDrafts() {
+      const { data, error } = await supabase
+        .from("ai_reply_drafts")
+        .select("tone, draft")
+        .eq("email_id", emailId);
+
+      if (!error && data && data.length > 0) {
+        const map: Record<string, string> = {};
+        (data as DraftRecord[]).forEach((d) => {
+          map[d.tone] = d.draft;
+        });
+        setDrafts(map);
+        setHasDrafts(true);
+        // Set to Professional draft if available
+        if (map["Professional"]) {
+          onChange(map["Professional"]);
+        }
+      }
+    }
+    fetchDrafts();
+  }, [emailId]);
+
+  const handleToneChange = (newTone: string) => {
+    setTone(newTone);
+    if (hasDrafts && drafts[newTone]) {
+      onChange(drafts[newTone]);
+    }
+  };
+
+  const currentDraft = hasDrafts && drafts[tone] ? drafts[tone] : draft;
 
   return (
     <div className="bg-card rounded-xl shadow-card p-6">
@@ -16,25 +58,34 @@ export function AIReplyEditor({ draft, onChange }: AIReplyEditorProps) {
         <div className="flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-primary" />
           <h3 className="font-semibold">AI Suggested Reply</h3>
+          {hasDrafts && (
+            <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">
+              {Object.keys(drafts).length} tones
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <select
-            value={tone}
-            onChange={(e) => setTone(e.target.value)}
-            className="text-xs px-2 py-1.5 rounded-md bg-secondary border-0 outline-none"
-          >
-            <option>Professional</option>
-            <option>Friendly</option>
-            <option>Direct</option>
-          </select>
-          <button className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-accent transition-colors">
-            <RefreshCw className="w-3 h-3" /> Regenerate
-          </button>
+          {["Professional", "Friendly", "Direct"].map((t) => (
+            <button
+              key={t}
+              onClick={() => handleToneChange(t)}
+              className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+                tone === t
+                  ? "bg-primary text-primary-foreground"
+                  : hasDrafts && drafts[t]
+                  ? "bg-secondary hover:bg-accent border border-border"
+                  : "bg-secondary/50 text-muted-foreground hover:bg-accent border border-border/50"
+              }`}
+            >
+              {t}
+              {hasDrafts && !drafts[t] && <span className="ml-1 opacity-50">—</span>}
+            </button>
+          ))}
         </div>
       </div>
 
       <textarea
-        value={draft}
+        value={currentDraft}
         onChange={(e) => onChange(e.target.value)}
         rows={10}
         className="w-full text-sm p-4 rounded-lg bg-secondary/50 border border-border outline-none focus:ring-2 focus:ring-primary/20 resize-y leading-relaxed"
