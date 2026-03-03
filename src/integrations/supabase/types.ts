@@ -103,6 +103,36 @@ export type Database = {
         }
         Relationships: []
       }
+      intents: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_active: boolean
+          key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean
+          key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
