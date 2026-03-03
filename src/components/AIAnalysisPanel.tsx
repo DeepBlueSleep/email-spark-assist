@@ -39,10 +39,17 @@ export function AIAnalysisPanel({ email }: { email: Email }) {
           <p className="text-xs font-medium text-muted-foreground mb-2">Sentiment</p>
           {email.sentiment_confidence > 0 ? (
             <div className="flex items-center gap-2">
-              <span className={cn("text-sm font-semibold px-2.5 py-1 rounded-md capitalize", sentimentBadge[email.sentiment])}>
+              <span
+                className={cn(
+                  "text-sm font-semibold px-2.5 py-1 rounded-md capitalize",
+                  sentimentBadge[email.sentiment],
+                )}
+              >
                 {email.sentiment}
               </span>
-              <span className="text-xs text-muted-foreground">{Number(email.sentiment_confidence).toFixed(2)}% confidence</span>
+              <span className="text-xs text-muted-foreground">
+                {(Number(email.sentiment_confidence) * 100).toFixed(2)}% confidence
+              </span>
             </div>
           ) : (
             <span className="text-xs text-muted-foreground italic">Not analyzed</span>
@@ -58,7 +65,9 @@ export function AIAnalysisPanel({ email }: { email: Email }) {
                 <span className="text-sm font-semibold px-2.5 py-1 rounded-md bg-primary/10 text-primary">
                   {email.intent}
                 </span>
-                <span className="text-xs text-muted-foreground">{Number(email.intent_confidence).toFixed(2)}% confidence</span>
+                <span className="text-xs text-muted-foreground">
+                  {(Number(email.intent_confidence) * 100).toFixed(2)}% confidence
+                </span>
               </div>
               {email.intent_confidence < 70 && (
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-sentiment-neutral bg-sentiment-neutral/10 px-2 py-1 rounded">
