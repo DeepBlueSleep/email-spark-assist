@@ -17,6 +17,15 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const [replyDraft, setReplyDraft] = useState(email.ai_reply_draft);
   const [selectedTone, setSelectedTone] = useState("Professional");
 
+  // Reset local state when email changes
+  const [prevEmailId, setPrevEmailId] = useState(email.id);
+  if (email.id !== prevEmailId) {
+    setPrevEmailId(email.id);
+    setOrderItems(email.extracted_order);
+    setReplyDraft(email.ai_reply_draft);
+    setSelectedTone("Professional");
+  }
+
   const handleAddSKUToOrder = (skuCode: string, skuName: string) => {
     const newItem: ExtractedOrderItem = {
       id: `oi-new-${Date.now()}`,
@@ -36,6 +45,11 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
       item.id === oldItemId ? { ...item, item_code: skuCode, item_name: skuName, remarks: "Replaced via SKU recommendation" } : item
     ));
   };
+
+  const hasOrderData = orderItems.length > 0;
+  const hasRecommendedSKUs = email.recommended_skus.length > 0;
+  const hasReplyDraft = replyDraft.trim().length > 0;
+  const hasAnyEnrichment = email.sentiment_confidence > 0 || email.intent_confidence > 0 || hasOrderData || hasRecommendedSKUs || hasReplyDraft;
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-5 animate-fade-in">
@@ -66,11 +80,11 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
         )}
       </div>
 
-      {/* AI Analysis */}
+      {/* AI Analysis — always shown */}
       <AIAnalysisPanel email={email} />
 
-      {/* SKU Recommendations */}
-      {email.recommended_skus.length > 0 && (
+      {/* SKU Recommendations — only when data exists */}
+      {hasRecommendedSKUs && (
         <SKURecommendations
           skus={email.recommended_skus}
           orderItems={orderItems}
@@ -79,16 +93,20 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
         />
       )}
 
-      {/* Order Data */}
-      {(email.intent === "Order Creation" || email.intent === "Order Change") && (
+      {/* Order Data — only when items exist */}
+      {hasOrderData && (
         <OrderDataTable items={orderItems} onChange={setOrderItems} />
       )}
 
-      {/* AI Reply */}
-      <AIReplyEditor emailId={email.id} draft={replyDraft} onChange={setReplyDraft} />
+      {/* AI Reply — only when a draft exists */}
+      {hasReplyDraft && (
+        <AIReplyEditor emailId={email.id} draft={replyDraft} onChange={setReplyDraft} />
+      )}
 
-      {/* Actions */}
-      <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} />
+      {/* Actions — only when there's enrichment data to act on */}
+      {hasAnyEnrichment && (
+        <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} />
+      )}
     </div>
   );
 }
