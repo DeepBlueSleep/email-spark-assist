@@ -3,14 +3,8 @@ project_id = "qnamtkdqqzchnnynaeli"
 [functions.webhook-email]
 verify_jwt = false
 
-[functions.webhook-ai-analysis]
-verify_jwt = false
-
-[functions.webhook-order-update]
+[functions.webhook-ai-enrichment]
 verify_jwt = false
 
 [functions.webhook-products]
-verify_jwt = false
-
-[functions.webhook-ai-reply]
 verify_jwt = false

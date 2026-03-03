@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-webhook-secret",
+    "authorization, x-client-info, apikey, content-type, x-webhook-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -31,15 +31,14 @@ Deno.serve(async (req) => {
     const payload = await req.json();
 
     await supabase.from("webhook_logs").insert({
-      endpoint: "webhook-ai-analysis",
+      endpoint: "webhook-ai-enrichment",
       payload,
     });
 
-    // Expects: { email_id or external_id, sentiment, sentiment_confidence, intent, intent_confidence, ai_reply_draft, extracted_order[], recommended_skus[] }
+    // --- Resolve email ---
     const emailId = payload.email_id;
     const externalId = payload.external_id;
 
-    // Find the email
     let query = supabase.from("emails").select("id");
     if (emailId) {
       query = query.eq("id", emailId);
@@ -62,14 +61,49 @@ Deno.serve(async (req) => {
 
     const dbEmailId = emailRecord.id;
 
-    // Update AI analysis fields on the email
+    // --- 1. Update AI analysis fields on the email ---
     const updateFields: Record<string, any> = {};
     if (payload.sentiment !== undefined) updateFields.sentiment = payload.sentiment;
     if (payload.sentiment_confidence !== undefined) updateFields.sentiment_confidence = payload.sentiment_confidence;
     if (payload.intent !== undefined) updateFields.intent = payload.intent;
     if (payload.intent_confidence !== undefined) updateFields.intent_confidence = payload.intent_confidence;
-    if (payload.ai_reply_draft !== undefined) updateFields.ai_reply_draft = payload.ai_reply_draft;
     if (payload.status !== undefined) updateFields.status = payload.status;
+
+    // --- 2. AI reply drafts ---
+    let drafts: { tone: string; draft: string }[] = [];
+
+    if (payload.drafts && typeof payload.drafts === "object" && !Array.isArray(payload.drafts)) {
+      for (const [tone, text] of Object.entries(payload.drafts)) {
+        if (text) {
+          drafts.push({
+            tone: tone.charAt(0).toUpperCase() + tone.slice(1).toLowerCase(),
+            draft: text as string,
+          });
+        }
+      }
+    } else if (Array.isArray(payload.drafts)) {
+      drafts = payload.drafts.map((d: any) => ({
+        tone: d.tone || "Professional",
+        draft: d.draft || d.text || d.content || "",
+      }));
+    } else if (payload.ai_reply_draft) {
+      drafts.push({ tone: "Professional", draft: payload.ai_reply_draft });
+    }
+
+    if (drafts.length > 0) {
+      await supabase.from("ai_reply_drafts").delete().eq("email_id", dbEmailId);
+      const insertData = drafts.map((d) => ({
+        email_id: dbEmailId,
+        tone: d.tone,
+        draft: d.draft,
+      }));
+      const { error: insertError } = await supabase.from("ai_reply_drafts").insert(insertData);
+      if (insertError) throw insertError;
+
+      // Set default draft on email record
+      const defaultDraft = drafts.find((d) => d.tone === "Professional") || drafts[0];
+      updateFields.ai_reply_draft = defaultDraft.draft;
+    }
 
     if (Object.keys(updateFields).length > 0) {
       const { error: updateError } = await supabase
@@ -79,7 +113,7 @@ Deno.serve(async (req) => {
       if (updateError) throw updateError;
     }
 
-    // Replace extracted order if provided
+    // --- 3. Extracted order items ---
     if (payload.extracted_order?.length > 0) {
       await supabase.from("order_items").delete().eq("email_id", dbEmailId);
       const orderItems = payload.extracted_order.map((item: any) => ({
@@ -96,7 +130,7 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
-    // Replace recommended SKUs if provided
+    // --- 4. Recommended SKUs ---
     if (payload.recommended_skus?.length > 0) {
       await supabase.from("recommended_skus").delete().eq("email_id", dbEmailId);
       const skus = payload.recommended_skus.map((sku: any) => ({
@@ -116,11 +150,18 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, email_id: dbEmailId }),
+      JSON.stringify({
+        success: true,
+        email_id: dbEmailId,
+        updated_fields: Object.keys(updateFields),
+        drafts_count: drafts.length,
+        order_items_count: payload.extracted_order?.length || 0,
+        recommended_skus_count: payload.recommended_skus?.length || 0,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("AI analysis webhook error:", error);
+    console.error("AI enrichment webhook error:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
