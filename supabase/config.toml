@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.webhook-products]
 verify_jwt = false
+
+[functions.get-products]
+verify_jwt = false
+
+[functions.get-intents]
+verify_jwt = false
