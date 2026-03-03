@@ -38,11 +38,13 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const category = url.searchParams.get("category");
     const active = url.searchParams.get("active");
+    const inStock = url.searchParams.get("in_stock");
 
     let query = supabase.from("products").select("*");
 
     if (category) query = query.eq("category", category);
     if (active !== null) query = query.eq("is_active", active !== "false");
+    if (inStock !== null && inStock !== "false") query = query.gt("stock_level", 0);
 
     const { data, error } = await query.order("name");
 
