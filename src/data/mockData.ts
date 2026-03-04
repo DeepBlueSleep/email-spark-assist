@@ -86,13 +86,13 @@ Global Steel Industries Sdn Bhd`,
 Thank you for your order request. We're happy to assist with your factory expansion needs.
 
 I've processed your order for the following items:
-1. Green Industrial Hose 50m (2-inch) x 3 rolls — RM 285.00/roll
-2. Blue PVC Pipe 30m (1-inch) x 2 rolls — RM 78.50/roll
-3. Red Safety Cable 100m x 1 roll — RM 152.00/roll
+1. Green Industrial Hose 50m (2-inch) x 3 rolls — $285.00/roll
+2. Blue PVC Pipe 30m (1-inch) x 2 rolls — $78.50/roll
+3. Red Safety Cable 100m x 1 roll — $152.00/roll
 
 All items are currently in stock. We can arrange delivery to your Johor Bahru warehouse by Friday, 6th March 2026.
 
-Total estimated value: RM 1,164.00 (before GST)
+Total estimated value: $1,164.00 (before GST)
 
 Please confirm this order and we will prepare the official quotation.
 
@@ -134,9 +134,9 @@ Thank you for your update on order #ORD-4521.
 
 We'll make the following change:
 - Replace: Blue PVC Pipe 20m (1.5-inch) x 10 units
-- With: Red PVC Pipe 20m (1.5-inch) x 10 units — RM 95.00/unit
+- With: Red PVC Pipe 20m (1.5-inch) x 10 units — $95.00/unit
 
-We also have Green Pipe Connectors (1.5-inch) available at RM 12.50 each. Would you like to add these to the order?
+We also have Green Pipe Connectors (1.5-inch) available at $12.50 each. Would you like to add these to the order?
 
 Please confirm and we'll update the order accordingly.
 
@@ -199,7 +199,7 @@ Order Processing Team`,
     subject: "Credit limit enquiry for upcoming bulk purchase",
     body: `Dear Team,
 
-We are planning a significant bulk purchase next month estimated at around RM 250,000. Could you please confirm our current credit limit and outstanding balance?
+We are planning a significant bulk purchase next month estimated at around $250,000. Could you please confirm our current credit limit and outstanding balance?
 
 We want to ensure we have sufficient credit before placing the order. If needed, we can arrange for an advance payment.
 
@@ -221,11 +221,11 @@ Tan Group Holdings`,
 Thank you for reaching out regarding your credit arrangements.
 
 Your current account details:
-- Credit Limit: RM 300,000
-- Outstanding Balance: RM 45,200
-- Available Credit: RM 254,800
+- Credit Limit: $300,000
+- Outstanding Balance: $45,200
+- Available Credit: $254,800
 
-Based on your estimated purchase of RM 250,000, your available credit should be sufficient. However, we recommend settling the outstanding balance before the new order to ensure smooth processing.
+Based on your estimated purchase of $250,000, your available credit should be sufficient. However, we recommend settling the outstanding balance before the new order to ensure smooth processing.
 
 Please don't hesitate to contact us if you need any adjustments to your credit facility.
 
