@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Email, Status } from "@/data/mockData";
-import { Check, Edit, HelpCircle, XCircle, Send, Loader2 } from "lucide-react";
+import { Check, HelpCircle, XCircle, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -84,12 +84,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange 
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-sentiment-positive text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
         >
           <Send className="w-4 h-4" /> Approve & Send
-        </button>
-        <button
-          onClick={() => onStatusChange(email.id, "Awaiting Review")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-foreground font-medium text-sm hover:bg-accent transition-colors"
-        >
-          <Edit className="w-4 h-4" /> Edit Before Sending
         </button>
         <button
           onClick={() => setShowRequestInfo(true)}
