@@ -71,6 +71,18 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
+    // Notify external webhook about added products
+    const notifyUrl = "https://n8n.srv1031900.hstgr.cloud/webhook-test/a2647686-dd8d-492b-b418-dae2c37045e8";
+    try {
+      await fetch(notifyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "products_upserted", products: data }),
+      });
+    } catch (e) {
+      console.error("Failed to notify product webhook:", e);
+    }
+
     return new Response(
       JSON.stringify({ success: true, count: data?.length || 0 }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
