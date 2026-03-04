@@ -1,6 +1,6 @@
 export type Sentiment = "positive" | "neutral" | "negative";
-export type Intent = "Order Creation" | "Order Change" | "Stock Enquiry" | "Credit Enquiry" | "General Question";
-export type Status = "New" | "AI Processed" | "Awaiting Review" | "Approved" | "Replied" | "Escalated" | "Awaiting Customer";
+export type Intent = "Order Creation" | "Order Change" | "Stock Enquiry" | "Credit Enquiry" | "General Question" | string;
+export type Status = "New" | "AI Processed" | "Awaiting Review" | "Approved" | "Replied" | "Escalated" | "Awaiting Customer" | string;
 
 export interface ExtractedOrderItem {
   id: string;
