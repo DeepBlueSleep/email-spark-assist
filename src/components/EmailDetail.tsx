@@ -83,12 +83,15 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
       {/* AI Analysis — always shown */}
       <AIAnalysisPanel email={email} />
 
-      {/* Draft Order — combines extracted order + recommended SKUs */}
+      {/* Extracted Order Data — from email parsing */}
+      {hasOrderData && (
+        <OrderDataTable items={orderItems} onChange={setOrderItems} />
+      )}
+
+      {/* Draft Order — from recommended SKUs */}
       {hasDraftOrder && (
         <DraftOrder
-          orderItems={orderItems}
           recommendedSkus={email.recommended_skus}
-          onOrderChange={setOrderItems}
         />
       )}
 
