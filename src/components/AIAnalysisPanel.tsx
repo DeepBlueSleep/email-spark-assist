@@ -69,7 +69,7 @@ export function AIAnalysisPanel({ email }: { email: Email }) {
                   {(Number(email.intent_confidence) * 100).toFixed(2)}% confidence
                 </span>
               </div>
-              {email.intent_confidence < 70 && (
+              {email.intent_confidence * 100 < 70 && (
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-sentiment-neutral bg-sentiment-neutral/10 px-2 py-1 rounded">
                   <AlertTriangle className="w-3 h-3" />
                   Low confidence — review carefully
