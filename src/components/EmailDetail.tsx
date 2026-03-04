@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Email, Status, ExtractedOrderItem } from "@/data/mockData";
 import { AIAnalysisPanel } from "./AIAnalysisPanel";
-import { SKURecommendations } from "./SKURecommendations";
-import { OrderDataTable } from "./OrderDataTable";
+import { DraftOrder } from "./DraftOrder";
 import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
 import { User, Clock, Paperclip, FileText } from "lucide-react";
