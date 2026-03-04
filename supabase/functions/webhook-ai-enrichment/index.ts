@@ -100,9 +100,18 @@ Deno.serve(async (req) => {
       const { error: insertError } = await supabase.from("ai_reply_drafts").insert(insertData);
       if (insertError) throw insertError;
 
-      // Set default draft on email record
       const defaultDraft = drafts.find((d) => d.tone === "Professional") || drafts[0];
       updateFields.ai_reply_draft = defaultDraft.draft;
+    }
+
+    // --- 3. Recommended SKUs (stored as jsonb array on emails) ---
+    // Accepts: recommended_skus: [{ sku_code: "ABC", match_reason: "..." }, ...]
+    if (payload.recommended_skus?.length > 0) {
+      const skuRefs = payload.recommended_skus.map((sku: any) => ({
+        sku_code: sku.sku_code,
+        match_reason: sku.match_reason || "",
+      }));
+      updateFields.recommended_sku_codes = skuRefs;
     }
 
     if (Object.keys(updateFields).length > 0) {
@@ -113,7 +122,7 @@ Deno.serve(async (req) => {
       if (updateError) throw updateError;
     }
 
-    // --- 3. Extracted order items ---
+    // --- 4. Extracted order items ---
     if (payload.extracted_order?.length > 0) {
       await supabase.from("order_items").delete().eq("email_id", dbEmailId);
       const orderItems = payload.extracted_order.map((item: any) => ({
@@ -127,25 +136,6 @@ Deno.serve(async (req) => {
         remarks: item.remarks || "",
       }));
       const { error } = await supabase.from("order_items").insert(orderItems);
-      if (error) throw error;
-    }
-
-    // --- 4. Recommended SKUs ---
-    if (payload.recommended_skus?.length > 0) {
-      await supabase.from("recommended_skus").delete().eq("email_id", dbEmailId);
-      const skus = payload.recommended_skus.map((sku: any) => ({
-        email_id: dbEmailId,
-        sku_code: sku.sku_code,
-        name: sku.name,
-        category: sku.category || "",
-        color: sku.color || "",
-        size: sku.size || "",
-        price: sku.price || 0,
-        stock_level: sku.stock_level || 0,
-        match_reason: sku.match_reason || "",
-        image_url: sku.image_url || "",
-      }));
-      const { error } = await supabase.from("recommended_skus").insert(skus);
       if (error) throw error;
     }
 

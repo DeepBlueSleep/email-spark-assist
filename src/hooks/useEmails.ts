@@ -2,6 +2,11 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Email, Status, Sentiment, Intent, ExtractedOrderItem, RecommendedSKU, mockEmails } from "@/data/mockData";
 
+interface SkuRef {
+  sku_code: string;
+  match_reason?: string;
+}
+
 export function useEmails() {
   const [emails, setEmails] = useState<Email[]>(mockEmails);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,54 +22,84 @@ export function useEmails() {
       if (error) throw error;
 
       if (dbEmails && dbEmails.length > 0) {
-        // Fetch order items and SKUs for each email
         const emailIds = dbEmails.map((e) => e.id);
 
-        const [{ data: orderItems }, { data: skus }] = await Promise.all([
-          supabase.from("order_items").select("*").in("email_id", emailIds),
-          supabase.from("recommended_skus").select("*").in("email_id", emailIds),
-        ]);
+        // Fetch order items
+        const { data: orderItems } = await supabase
+          .from("order_items")
+          .select("*")
+          .in("email_id", emailIds);
 
-        const mapped: Email[] = dbEmails.map((e) => ({
-          id: e.id,
-          customer_name: e.customer_name,
-          email: e.email,
-          subject: e.subject,
-          body: e.body,
-          timestamp: e.timestamp,
-          sentiment: (e.sentiment?.toLowerCase() || "neutral") as Sentiment,
-          sentiment_confidence: Number(e.sentiment_confidence) || 0,
-          intent: (e.intent || "General Question") as Intent,
-          intent_confidence: Number(e.intent_confidence) || 0,
-          extracted_order: (orderItems || [])
-            .filter((oi) => oi.email_id === e.id)
-            .map((oi) => ({
-              id: oi.id,
-              item_code: oi.item_code,
-              item_name: oi.item_name,
-              quantity: oi.quantity || 1,
-              unit: oi.unit || "units",
-              delivery_date: oi.delivery_date || "",
-              delivery_address: oi.delivery_address || "",
-              remarks: oi.remarks || "",
-            })),
-          recommended_skus: (skus || [])
-            .filter((s) => s.email_id === e.id)
-            .map((s) => ({
-              sku_code: s.sku_code,
-              name: s.name,
-              category: s.category || "",
-              color: s.color || "",
-              size: s.size || "",
-              price: Number(s.price) || 0,
-              stock_level: s.stock_level || 0,
-              match_reason: s.match_reason || "",
-              image_url: s.image_url || "",
-            })),
-          ai_reply_draft: e.ai_reply_draft || "",
-          status: (e.status || "New") as Status,
-          attachments: e.attachments || [],
-        }));
+        // Collect all sku_codes from all emails' recommended_sku_codes
+        const allSkuRefs: SkuRef[] = [];
+        for (const e of dbEmails) {
+          const refs = (e as any).recommended_sku_codes as SkuRef[] | null;
+          if (refs && Array.isArray(refs)) {
+            allSkuRefs.push(...refs);
+          }
+        }
+        const uniqueSkuCodes = [...new Set(allSkuRefs.map((r) => r.sku_code))];
+
+        // Fetch product details for recommended SKUs
+        let productsMap: Record<string, any> = {};
+        if (uniqueSkuCodes.length > 0) {
+          const { data: products } = await supabase
+            .from("products")
+            .select("*")
+            .in("sku_code", uniqueSkuCodes);
+          if (products) {
+            for (const p of products) {
+              productsMap[p.sku_code] = p;
+            }
+          }
+        }
+
+        const mapped: Email[] = dbEmails.map((e) => {
+          const skuRefs = ((e as any).recommended_sku_codes as SkuRef[] | null) || [];
+          return {
+            id: e.id,
+            customer_name: e.customer_name,
+            email: e.email,
+            subject: e.subject,
+            body: e.body,
+            timestamp: e.timestamp,
+            sentiment: (e.sentiment?.toLowerCase() || "neutral") as Sentiment,
+            sentiment_confidence: Number(e.sentiment_confidence) || 0,
+            intent: (e.intent || "General Question") as Intent,
+            intent_confidence: Number(e.intent_confidence) || 0,
+            extracted_order: (orderItems || [])
+              .filter((oi) => oi.email_id === e.id)
+              .map((oi) => ({
+                id: oi.id,
+                item_code: oi.item_code,
+                item_name: oi.item_name,
+                quantity: oi.quantity || 1,
+                unit: oi.unit || "units",
+                delivery_date: oi.delivery_date || "",
+                delivery_address: oi.delivery_address || "",
+                remarks: oi.remarks || "",
+              })),
+            recommended_skus: skuRefs
+              .filter((ref) => productsMap[ref.sku_code])
+              .map((ref) => {
+                const p = productsMap[ref.sku_code];
+                return {
+                  sku_code: p.sku_code,
+                  name: p.name,
+                  category: p.category || "",
+                  color: p.color || "",
+                  size: p.size || "",
+                  price: Number(p.price) || 0,
+                  stock_level: p.stock_level || 0,
+                  match_reason: ref.match_reason || "",
+                  image_url: p.image_url || "",
+                };
+              }),
+            ai_reply_draft: e.ai_reply_draft || "",
+            status: (e.status || "New") as Status,
+            attachments: e.attachments || [],
+          };
+        });
 
         setEmails(mapped);
         setUsingLiveData(true);
@@ -79,7 +114,6 @@ export function useEmails() {
   useEffect(() => {
     fetchEmails();
 
-    // Subscribe to realtime changes
     const channel = supabase
       .channel("emails-realtime")
       .on(
