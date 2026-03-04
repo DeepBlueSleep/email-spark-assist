@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { RecommendedSKU } from "@/data/mockData";
-import { Plus, Trash2, ClipboardList, Package, Undo2 } from "lucide-react";
+import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DraftOrderItem {
   id: string;
@@ -14,6 +15,17 @@ interface DraftOrderItem {
   stock_level: number;
   match_reason: string;
   quantity: number;
+}
+
+interface ProductResult {
+  id: string;
+  sku_code: string;
+  name: string;
+  category: string;
+  color: string | null;
+  size: string | null;
+  price: number | null;
+  stock_level: number | null;
 }
 
 interface DraftOrderProps {
@@ -36,6 +48,11 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
     }))
   );
   const [removed, setRemoved] = useState<DraftOrderItem[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<ProductResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // Reset when SKUs change (email switch)
   const [prevSkus, setPrevSkus] = useState(recommendedSkus);
@@ -56,7 +73,60 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
       }))
     );
     setRemoved([]);
+    setShowSearch(false);
+    setSearchQuery("");
   }
+
+  // Search products from knowledge base
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      setSearching(true);
+      const { data } = await supabase
+        .from("products")
+        .select("id, sku_code, name, category, color, size, price, stock_level")
+        .or(`name.ilike.%${searchQuery}%,sku_code.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`)
+        .limit(8);
+      setSearchResults(data || []);
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  // Close search on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearch(false);
+        setSearchQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const addProductFromSearch = (product: ProductResult) => {
+    const existing = items.find((i) => i.sku_code === product.sku_code);
+    if (existing) return; // already in order
+    const newItem: DraftOrderItem = {
+      id: `do-${product.sku_code}-${Date.now()}`,
+      sku_code: product.sku_code,
+      name: product.name,
+      category: product.category,
+      color: product.color || "",
+      size: product.size || "",
+      price: product.price || 0,
+      stock_level: product.stock_level || 0,
+      match_reason: "Manually added",
+      quantity: 1,
+    };
+    setItems((prev) => [...prev, newItem]);
+    setShowSearch(false);
+    setSearchQuery("");
+  };
 
   const removeItem = (id: string) => {
     const item = items.find((i) => i.id === id);
@@ -72,18 +142,81 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
     }
   };
 
-  const updateQty = (id: string, qty: number) => {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, quantity: qty } : i)));
+  const updateItem = (id: string, field: keyof DraftOrderItem, value: string | number) => {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
   };
 
   return (
     <div className="bg-card rounded-xl shadow-card p-6 space-y-4">
-      <div className="flex items-center gap-2">
-        <ClipboardList className="w-5 h-5 text-primary" />
-        <h3 className="font-semibold">Draft Order</h3>
-        <span className="text-xs text-muted-foreground">
-          {items.length} item{items.length !== 1 ? "s" : ""}
-        </span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ClipboardList className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold">Draft Order</h3>
+          <span className="text-xs text-muted-foreground">
+            {items.length} item{items.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="relative" ref={searchRef}>
+          {showSearch ? (
+            <div className="flex items-center gap-1">
+              <div className="relative">
+                <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  autoFocus
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search products…"
+                  className="text-xs pl-7 pr-2 py-1.5 w-56 rounded-md bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30"
+                />
+              </div>
+              <button onClick={() => { setShowSearch(false); setSearchQuery(""); }} className="p-1 text-muted-foreground hover:text-foreground">
+                <X className="w-3.5 h-3.5" />
+              </button>
+              {/* Dropdown results */}
+              {searchQuery.trim() && (
+                <div className="absolute top-full right-0 mt-1 w-72 bg-popover border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                  {searching ? (
+                    <p className="text-xs text-muted-foreground p-3 text-center">Searching…</p>
+                  ) : searchResults.length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-3 text-center">No products found</p>
+                  ) : (
+                    searchResults.map((p) => {
+                      const alreadyAdded = items.some((i) => i.sku_code === p.sku_code);
+                      return (
+                        <button
+                          key={p.id}
+                          disabled={alreadyAdded}
+                          onClick={() => addProductFromSearch(p)}
+                          className={cn(
+                            "w-full text-left px-3 py-2 text-xs hover:bg-accent/50 transition-colors flex items-center justify-between gap-2 border-b border-border/30 last:border-0",
+                            alreadyAdded && "opacity-40 cursor-not-allowed"
+                          )}
+                        >
+                          <div>
+                            <span className="font-medium">{p.name}</span>
+                            <span className="text-muted-foreground ml-2 font-mono">{p.sku_code}</span>
+                          </div>
+                          {alreadyAdded ? (
+                            <span className="text-[10px] text-muted-foreground">Added</span>
+                          ) : (
+                            <Plus className="w-3 h-3 text-primary" />
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowSearch(true)}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-3 h-3" /> Add Product
+            </button>
+          )}
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -106,23 +239,43 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
             <tbody>
               {items.map((item) => (
                 <tr key={item.id} className="border-b border-border/50 hover:bg-accent/30">
-                  <td className="py-2 px-2 text-xs font-mono text-muted-foreground">{item.sku_code}</td>
-                  <td className="py-2 px-2 text-xs font-medium">{item.name}</td>
+                  <td className="py-2 px-2">
+                    <input
+                      value={item.sku_code}
+                      onChange={(e) => updateItem(item.id, "sku_code", e.target.value)}
+                      className="w-24 text-xs font-mono px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30"
+                    />
+                  </td>
+                  <td className="py-2 px-2">
+                    <input
+                      value={item.name}
+                      onChange={(e) => updateItem(item.id, "name", e.target.value)}
+                      className="w-full min-w-[120px] text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30"
+                    />
+                  </td>
                   <td className="py-2 px-2">
                     <div className="flex flex-wrap gap-1">
-                      {item.color && item.color !== "N/A" && (
-                        <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{item.color}</span>
-                      )}
-                      {item.category && (
-                        <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{item.category}</span>
-                      )}
-                      {item.size && (
-                        <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{item.size}</span>
-                      )}
+                      <input
+                        value={item.color}
+                        onChange={(e) => updateItem(item.id, "color", e.target.value)}
+                        placeholder="Color"
+                        className="w-16 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30"
+                      />
+                      <input
+                        value={item.size}
+                        onChange={(e) => updateItem(item.id, "size", e.target.value)}
+                        placeholder="Size"
+                        className="w-20 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30"
+                      />
                     </div>
                   </td>
-                  <td className="py-2 px-2 text-xs">
-                    {item.price > 0 ? `$${item.price.toFixed(2)}` : "—"}
+                  <td className="py-2 px-2">
+                    <input
+                      type="number"
+                      value={item.price}
+                      onChange={(e) => updateItem(item.id, "price", parseFloat(e.target.value) || 0)}
+                      className="w-16 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30"
+                    />
                   </td>
                   <td className="py-2 px-2">
                     <span className={cn("text-xs", item.stock_level > 10 ? "text-sentiment-positive" : "text-sentiment-negative")}>
@@ -134,7 +287,7 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
                       type="number"
                       min={1}
                       value={item.quantity}
-                      onChange={(e) => updateQty(item.id, parseInt(e.target.value) || 1)}
+                      onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)}
                       className="w-14 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30"
                     />
                   </td>
