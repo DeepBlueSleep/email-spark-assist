@@ -46,9 +46,10 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
     ));
   };
 
-  const hasDraftOrder = orderItems.length > 0 || email.recommended_skus.length > 0;
+  const hasOrderData = email.extracted_order.length > 0;
+  const hasDraftOrder = email.recommended_skus.length > 0;
   const hasReplyDraft = replyDraft.trim().length > 0;
-  const hasAnyEnrichment = email.sentiment_confidence > 0 || email.intent_confidence > 0 || hasDraftOrder || hasReplyDraft;
+  const hasAnyEnrichment = email.sentiment_confidence > 0 || email.intent_confidence > 0 || hasOrderData || hasDraftOrder || hasReplyDraft;
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-5 animate-fade-in">
