@@ -85,7 +85,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
 
       {/* Extracted Order Data — from email parsing */}
       {hasOrderData && (
-        <OrderDataTable items={orderItems} onChange={setOrderItems} />
+        <OrderDataTable items={orderItems} />
       )}
 
       {/* Draft Order — from recommended SKUs */}
