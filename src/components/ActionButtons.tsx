@@ -86,12 +86,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange 
           <Send className="w-4 h-4" /> Approve & Send
         </button>
         <button
-          onClick={() => onStatusChange(email.id, "Awaiting Review")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-foreground font-medium text-sm hover:bg-accent transition-colors"
-        >
-          <Edit className="w-4 h-4" /> Edit Before Sending
-        </button>
-        <button
           onClick={() => setShowRequestInfo(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-status-awaiting/30 text-status-awaiting font-medium text-sm hover:bg-status-awaiting/5 transition-colors"
         >
