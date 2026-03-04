@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Email, Sentiment, Intent, Status } from "@/data/mockData";
 import { Search, Filter, Mail, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, formatLabel } from "@/lib/utils";
 
 const sentimentDotClass: Record<Sentiment, string> = {
   positive: "bg-sentiment-positive",
@@ -135,8 +135,8 @@ export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
                 <p className="text-sm font-medium text-foreground/80 truncate mt-0.5">{email.subject}</p>
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{email.body.slice(0, 120)}...</p>
                 <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                  <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", intentColors[email.intent])}>{email.intent}</span>
-                  <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border", statusColorClass[email.status])}>{email.status}</span>
+                  <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", intentColors[email.intent] || "bg-primary/10 text-primary")}>{formatLabel(email.intent)}</span>
+                  <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border", statusColorClass[email.status] || "bg-muted text-muted-foreground border-border")}>{formatLabel(email.status)}</span>
                 </div>
               </div>
             </div>

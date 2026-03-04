@@ -1,5 +1,5 @@
 import { Email } from "@/data/mockData";
-import { cn } from "@/lib/utils";
+import { cn, formatLabel } from "@/lib/utils";
 import { Brain, AlertTriangle, Clock } from "lucide-react";
 
 const sentimentBadge = {
@@ -45,7 +45,7 @@ export function AIAnalysisPanel({ email }: { email: Email }) {
                   sentimentBadge[email.sentiment],
                 )}
               >
-                {email.sentiment}
+                {formatLabel(email.sentiment)}
               </span>
               <span className="text-xs text-muted-foreground">
                 {(Number(email.sentiment_confidence) * 100).toFixed(2)}% confidence
@@ -63,7 +63,7 @@ export function AIAnalysisPanel({ email }: { email: Email }) {
             <>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold px-2.5 py-1 rounded-md bg-primary/10 text-primary">
-                  {email.intent}
+                  {formatLabel(email.intent)}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {(Number(email.intent_confidence) * 100).toFixed(2)}% confidence
