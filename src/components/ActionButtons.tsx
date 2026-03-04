@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Email, Status } from "@/data/mockData";
-import { Check, Edit, HelpCircle, XCircle, Send, Loader2 } from "lucide-react";
+import { Check, HelpCircle, XCircle, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
