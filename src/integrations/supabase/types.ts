@@ -58,6 +58,7 @@ export type Database = {
           id: string
           intent: string | null
           intent_confidence: number | null
+          recommended_sku_codes: Json | null
           sentiment: string | null
           sentiment_confidence: number | null
           status: string | null
@@ -76,6 +77,7 @@ export type Database = {
           id?: string
           intent?: string | null
           intent_confidence?: number | null
+          recommended_sku_codes?: Json | null
           sentiment?: string | null
           sentiment_confidence?: number | null
           status?: string | null
@@ -94,6 +96,7 @@ export type Database = {
           id?: string
           intent?: string | null
           intent_confidence?: number | null
+          recommended_sku_codes?: Json | null
           sentiment?: string | null
           sentiment_confidence?: number | null
           status?: string | null
@@ -236,59 +239,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      recommended_skus: {
-        Row: {
-          category: string | null
-          color: string | null
-          created_at: string
-          email_id: string
-          id: string
-          image_url: string | null
-          match_reason: string | null
-          name: string
-          price: number | null
-          size: string | null
-          sku_code: string
-          stock_level: number | null
-        }
-        Insert: {
-          category?: string | null
-          color?: string | null
-          created_at?: string
-          email_id: string
-          id?: string
-          image_url?: string | null
-          match_reason?: string | null
-          name: string
-          price?: number | null
-          size?: string | null
-          sku_code: string
-          stock_level?: number | null
-        }
-        Update: {
-          category?: string | null
-          color?: string | null
-          created_at?: string
-          email_id?: string
-          id?: string
-          image_url?: string | null
-          match_reason?: string | null
-          name?: string
-          price?: number | null
-          size?: string | null
-          sku_code?: string
-          stock_level?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "recommended_skus_email_id_fkey"
-            columns: ["email_id"]
-            isOneToOne: false
-            referencedRelation: "emails"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       webhook_logs: {
         Row: {

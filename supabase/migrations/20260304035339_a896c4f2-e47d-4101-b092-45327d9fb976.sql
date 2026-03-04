@@ -1,0 +1,1 @@
+ALTER TABLE public.emails ADD COLUMN recommended_sku_codes jsonb DEFAULT '[]'::jsonb;
