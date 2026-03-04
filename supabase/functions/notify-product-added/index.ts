@@ -15,22 +15,27 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const product = await req.json();
+    const body = await req.json();
+    
+    // Support both single product and array of products
+    const products = Array.isArray(body) ? body : [body];
+    const results = [];
 
-    const response = await fetch(NOTIFICATION_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(product),
-    });
-
-    const responseText = await response.text();
+    for (const product of products) {
+      const response = await fetch(NOTIFICATION_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(product),
+      });
+      results.push({
+        sku_code: product.sku_code,
+        status: response.status,
+        response: await response.text(),
+      });
+    }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        status: response.status,
-        response: responseText,
-      }),
+      JSON.stringify({ success: true, results }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

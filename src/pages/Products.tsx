@@ -173,7 +173,7 @@ export default function Products() {
                   <td className="px-4 py-3">{p.color}</td>
                   <td className="px-4 py-3">{p.size}</td>
                   <td className="px-4 py-3">{p.material}</td>
-                  <td className="px-4 py-3 text-right">{<td className="px-4 py-3 text-right">{p.price > 0 ? `$${p.price.toFixed(2)}` : "—"}</td>}</td>
+                  <td className="px-4 py-3 text-right">{p.price > 0 ? `$${p.price.toFixed(2)}` : "—"}</td>
                   <td className="px-4 py-3 text-right">{p.stock_level}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${p.is_active ? "bg-sentiment-positive/10 text-sentiment-positive" : "bg-muted text-muted-foreground"}`}>
@@ -234,7 +234,7 @@ export default function Products() {
                 <input value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Price (RM)</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Price ($)</label>
                 <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
