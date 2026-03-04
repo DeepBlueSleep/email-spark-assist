@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Email, Status, ExtractedOrderItem } from "@/data/mockData";
 import { AIAnalysisPanel } from "./AIAnalysisPanel";
+import { OrderDataTable } from "./OrderDataTable";
 import { DraftOrder } from "./DraftOrder";
 import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
