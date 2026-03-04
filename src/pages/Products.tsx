@@ -98,9 +98,13 @@ export default function Products() {
       if (error) { toast.error(error.message); return; }
       toast.success("Product updated");
     } else {
-      const { error } = await supabase.from("products").insert(payload);
+      const { data, error } = await supabase.from("products").insert(payload).select().single();
       if (error) { toast.error(error.message); return; }
       toast.success("Product added");
+      // Notify external webhook about the new product
+      supabase.functions.invoke("notify-product-added", { body: data }).catch((err) =>
+        console.error("Failed to notify product webhook:", err)
+      );
     }
     setShowForm(false);
     fetchProducts();
