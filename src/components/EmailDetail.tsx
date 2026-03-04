@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Email, Status, ExtractedOrderItem } from "@/data/mockData";
 import { AIAnalysisPanel } from "./AIAnalysisPanel";
-import { SKURecommendations } from "./SKURecommendations";
-import { OrderDataTable } from "./OrderDataTable";
+import { DraftOrder } from "./DraftOrder";
 import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
 import { User, Clock, Paperclip, FileText } from "lucide-react";
@@ -46,10 +45,9 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
     ));
   };
 
-  const hasOrderData = orderItems.length > 0;
-  const hasRecommendedSKUs = email.recommended_skus.length > 0;
+  const hasDraftOrder = orderItems.length > 0 || email.recommended_skus.length > 0;
   const hasReplyDraft = replyDraft.trim().length > 0;
-  const hasAnyEnrichment = email.sentiment_confidence > 0 || email.intent_confidence > 0 || hasOrderData || hasRecommendedSKUs || hasReplyDraft;
+  const hasAnyEnrichment = email.sentiment_confidence > 0 || email.intent_confidence > 0 || hasDraftOrder || hasReplyDraft;
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-5 animate-fade-in">
@@ -83,19 +81,13 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
       {/* AI Analysis — always shown */}
       <AIAnalysisPanel email={email} />
 
-      {/* SKU Recommendations — only when data exists */}
-      {hasRecommendedSKUs && (
-        <SKURecommendations
-          skus={email.recommended_skus}
+      {/* Draft Order — combines extracted order + recommended SKUs */}
+      {hasDraftOrder && (
+        <DraftOrder
           orderItems={orderItems}
-          onAddToOrder={handleAddSKUToOrder}
-          onReplace={handleReplaceSKU}
+          recommendedSkus={email.recommended_skus}
+          onOrderChange={setOrderItems}
         />
-      )}
-
-      {/* Order Data — only when items exist */}
-      {hasOrderData && (
-        <OrderDataTable items={orderItems} onChange={setOrderItems} />
       )}
 
       {/* AI Reply — only when a draft exists */}
