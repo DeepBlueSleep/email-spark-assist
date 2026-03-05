@@ -5,6 +5,140 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
+interface ParsedEmail {
+  customer_name: string;
+  customer_email: string;
+  subject: string;
+  body: string;
+  external_id: string;
+  timestamp: string;
+  attachments: string[];
+}
+
+function parseN8nParsedFormat(raw: any): ParsedEmail | null {
+  // New n8n format with structured from/to objects, text, html, messageId
+  if (!raw.from?.value && !raw.messageId) return null;
+
+  const fromEntry = raw.from?.value?.[0];
+  const customer_name = fromEntry?.name || fromEntry?.address || "Unknown Sender";
+  const customer_email = fromEntry?.address || "unknown@unknown.com";
+
+  let body = raw.text || "";
+  if (!body && raw.html) {
+    body = raw.html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  // Extract attachment filenames if present
+  const attachments: string[] = [];
+  if (raw.attachments && Array.isArray(raw.attachments)) {
+    for (const att of raw.attachments) {
+      if (att.filename) attachments.push(att.filename);
+    }
+  }
+
+  return {
+    customer_name,
+    customer_email,
+    subject: raw.subject || "(No Subject)",
+    body,
+    external_id: raw.messageId || crypto.randomUUID(),
+    timestamp: raw.date || new Date().toISOString(),
+    attachments,
+  };
+}
+
+function parseGmailRawFormat(raw: any): ParsedEmail | null {
+  // Gmail API format with payload.headers, labelIds, etc.
+  if (!raw.payload?.headers && !raw.labelIds) return null;
+
+  const headers = raw.payload?.headers || [];
+  const getHeader = (name: string) =>
+    headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
+
+  let bodyText = "";
+  const parts = raw.payload?.parts || [];
+  const bodyData = raw.payload?.body?.data;
+
+  if (bodyData) {
+    bodyText = atob(bodyData.replace(/-/g, "+").replace(/_/g, "/"));
+  } else {
+    for (const part of parts) {
+      if (part.mimeType === "text/plain" && part.body?.data) {
+        bodyText = atob(part.body.data.replace(/-/g, "+").replace(/_/g, "/"));
+        break;
+      }
+    }
+    if (!bodyText) {
+      for (const part of parts) {
+        if (part.mimeType === "text/html" && part.body?.data) {
+          bodyText = atob(part.body.data.replace(/-/g, "+").replace(/_/g, "/"));
+          break;
+        }
+      }
+    }
+  }
+
+  const fromField = getHeader("From") || raw.from || "";
+  let customer_name = "";
+  let customer_email = "";
+  const match = fromField.match(/(.*)<(.*)>/);
+  if (match) {
+    customer_name = match[1].trim().replace(/^"|"$/g, "");
+    customer_email = match[2].trim();
+  } else {
+    customer_email = fromField.trim();
+  }
+
+  return {
+    customer_name: customer_name || customer_email || "Unknown Sender",
+    customer_email: customer_email || "unknown@unknown.com",
+    subject: getHeader("Subject") || raw.subject || "(No Subject)",
+    body: bodyText || raw.snippet || "",
+    external_id: getHeader("Message-ID") || raw.id || crypto.randomUUID(),
+    timestamp: raw.internalDate
+      ? new Date(parseInt(raw.internalDate)).toISOString()
+      : getHeader("Date") || new Date().toISOString(),
+    attachments: raw.attachments || [],
+  };
+}
+
+function parseFlatFormat(raw: any): ParsedEmail {
+  // Flat/legacy format with direct fields
+  let customer_name = raw.customer_name || null;
+  let customer_email = raw.email || null;
+  let body = raw.body || raw.textPlain || raw.snippet || "";
+
+  if (body.startsWith("<") || body.includes("<div") || body.includes("<p")) {
+    body = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  const fromField = raw.from || raw.From || "";
+  if (!customer_email && fromField) {
+    const match = fromField.match(/(.*)<(.*)>/);
+    if (match) {
+      customer_name = customer_name || match[1].trim().replace(/^"|"$/g, "");
+      customer_email = match[2].trim();
+    } else {
+      customer_email = fromField.trim();
+    }
+  }
+
+  return {
+    customer_name: customer_name || customer_email || "Unknown Sender",
+    customer_email: customer_email || "unknown@unknown.com",
+    subject: raw.subject || "(No Subject)",
+    body,
+    external_id: raw.external_id || raw.message_id || raw.messageId || raw["message-id"] || raw.id || crypto.randomUUID(),
+    timestamp: raw.timestamp || raw.date || new Date().toISOString(),
+    attachments: raw.attachments || [],
+  };
+}
+
+function parseEmail(raw: any): { parsed: ParsedEmail; raw: any } {
+  const parsed = parseN8nParsedFormat(raw) || parseGmailRawFormat(raw) || parseFlatFormat(raw);
+  return { parsed, raw };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,133 +159,74 @@ Deno.serve(async (req) => {
       }
     }
 
-    const payload = await req.json();
+    // Handle both JSON and form data
+    let payload: any;
+    const contentType = req.headers.get("content-type") || "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const payloadField = formData.get("payload");
+      payload = payloadField ? JSON.parse(payloadField as string) : null;
+      // Attachment files from form data (filenames logged)
+      const attachmentFiles: string[] = [];
+      for (const [key, value] of formData.entries()) {
+        if (key === "attachment" && value instanceof File) {
+          attachmentFiles.push(value.name);
+        }
+      }
+      if (payload && attachmentFiles.length > 0) {
+        const items = Array.isArray(payload) ? payload : [payload];
+        for (const item of items) {
+          item._formAttachments = attachmentFiles;
+        }
+      }
+    } else {
+      payload = await req.json();
+    }
+
+    if (!payload) {
+      return new Response(JSON.stringify({ error: "No payload provided" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Log the webhook
     await supabase.from("webhook_logs").insert({
       endpoint: "webhook-email",
-      payload,
+      payload: typeof payload === "object" ? payload : { raw: String(payload) },
     });
 
     // Support single or batch emails
     const emails = Array.isArray(payload) ? payload : [payload];
-
     const results = [];
 
     for (const rawData of emails) {
-      // --- Normalize Gmail / n8n structure ---
-      // n8n Gmail node typically sends fields like:
-      //   id, threadId, labelIds, snippet,
-      //   payload.headers (array of {name, value}),
-      //   payload.parts or payload.body,
-      //   internalDate, sizeEstimate
-      // It may also send a flattened version with:
-      //   from, to, subject, textPlain, textHtml, date, messageId
+      const { parsed, raw } = parseEmail(rawData);
 
-      const isGmailRaw = rawData.payload?.headers || rawData.labelIds;
-      let emailData = rawData;
-
-      if (isGmailRaw) {
-        // Extract headers from Gmail API format
-        const headers = rawData.payload?.headers || [];
-        const getHeader = (name: string) =>
-          headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
-
-        // Decode body from Gmail parts
-        let bodyText = "";
-        const parts = rawData.payload?.parts || [];
-        const bodyData = rawData.payload?.body?.data;
-
-        if (bodyData) {
-          bodyText = atob(bodyData.replace(/-/g, "+").replace(/_/g, "/"));
-        } else {
-          for (const part of parts) {
-            if (part.mimeType === "text/plain" && part.body?.data) {
-              bodyText = atob(part.body.data.replace(/-/g, "+").replace(/_/g, "/"));
-              break;
-            }
-          }
-          // Fallback to html part
-          if (!bodyText) {
-            for (const part of parts) {
-              if (part.mimeType === "text/html" && part.body?.data) {
-                bodyText = atob(part.body.data.replace(/-/g, "+").replace(/_/g, "/"));
-                break;
-              }
-            }
-          }
-        }
-
-        // Flatten into our normalized shape
-        emailData = {
-          ...rawData,
-          from: getHeader("From") || rawData.from,
-          subject: getHeader("Subject") || rawData.subject || "",
-          body: bodyText || rawData.snippet || "",
-          message_id: getHeader("Message-ID") || rawData.id,
-          timestamp: rawData.internalDate
-            ? new Date(parseInt(rawData.internalDate)).toISOString()
-            : getHeader("Date") || new Date().toISOString(),
-        };
+      // Merge form-level attachments
+      if (rawData._formAttachments?.length && !parsed.attachments.length) {
+        parsed.attachments = rawData._formAttachments;
       }
-
-      // --- Parse from/email fields ---
-      let customer_name = emailData.customer_name || null;
-      let customer_email = emailData.email || null;
-      let body = emailData.body || emailData.textPlain || emailData.snippet || "";
-
-      // Strip HTML tags if body looks like HTML
-      if (body.startsWith("<") || body.includes("<div") || body.includes("<p")) {
-        body = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-      }
-
-      // Handle "Name <email>" format from Gmail
-      const fromField = emailData.from || emailData.From || "";
-      if (!customer_email && fromField) {
-        const match = fromField.match(/(.*)<(.*)>/);
-        if (match) {
-          customer_name = customer_name || match[1].trim().replace(/^"|"$/g, "");
-          customer_email = match[2].trim();
-        } else {
-          customer_email = fromField.trim();
-        }
-      }
-
-      if (!customer_name) {
-        customer_name = customer_email || "Unknown Sender";
-      }
-
-      if (!customer_email) {
-        customer_email = "unknown@unknown.com";
-      }
-
-      // Build external_id from available identifiers
-      const externalId =
-        emailData.external_id ||
-        emailData.message_id ||
-        emailData.messageId ||
-        emailData["message-id"] ||
-        emailData.id ||
-        crypto.randomUUID();
 
       // Insert the email
       const { data: email, error: emailError } = await supabase
         .from("emails")
         .upsert(
           {
-            external_id: externalId,
-            customer_name,
-            email: customer_email,
-            subject: emailData.subject || "(No Subject)",
-            body,
-            timestamp: emailData.timestamp || emailData.date || new Date().toISOString(),
-            sentiment: emailData.sentiment || "Neutral",
-            sentiment_confidence: emailData.sentiment_confidence || 0,
-            intent: emailData.intent || "General Question",
-            intent_confidence: emailData.intent_confidence || 0,
-            ai_reply_draft: emailData.ai_reply_draft || "",
-            status: emailData.status || "New",
-            attachments: emailData.attachments || [],
+            external_id: parsed.external_id,
+            customer_name: parsed.customer_name,
+            email: parsed.customer_email,
+            subject: parsed.subject,
+            body: parsed.body,
+            timestamp: parsed.timestamp,
+            sentiment: raw.sentiment || "Neutral",
+            sentiment_confidence: raw.sentiment_confidence || 0,
+            intent: raw.intent || "General Question",
+            intent_confidence: raw.intent_confidence || 0,
+            ai_reply_draft: raw.ai_reply_draft || "",
+            status: raw.status || "New",
+            attachments: parsed.attachments,
           },
           { onConflict: "external_id" },
         )
@@ -161,8 +236,8 @@ Deno.serve(async (req) => {
       if (emailError) throw emailError;
 
       // Insert order items if provided
-      if (emailData.extracted_order?.length > 0) {
-        const orderItems = emailData.extracted_order.map((item: any) => ({
+      if (raw.extracted_order?.length > 0) {
+        const orderItems = raw.extracted_order.map((item: any) => ({
           email_id: email.id,
           item_code: item.item_code,
           item_name: item.item_name,
@@ -178,8 +253,8 @@ Deno.serve(async (req) => {
       }
 
       // Insert recommended SKUs if provided
-      if (emailData.recommended_skus?.length > 0) {
-        const skus = emailData.recommended_skus.map((sku: any) => ({
+      if (raw.recommended_skus?.length > 0) {
+        const skus = raw.recommended_skus.map((sku: any) => ({
           email_id: email.id,
           sku_code: sku.sku_code,
           name: sku.name,
