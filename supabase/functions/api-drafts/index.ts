@@ -17,6 +17,14 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(emailId)) {
+        return new Response(JSON.stringify({ drafts: [] }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const data = await sql`SELECT tone, draft FROM ai_reply_drafts WHERE email_id = ${emailId}`;
       return new Response(JSON.stringify({ drafts: data }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

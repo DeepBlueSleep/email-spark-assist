@@ -44,7 +44,8 @@ Deno.serve(async (req) => {
       // PATCH /api-emails - update email fields
       const body = await req.json();
       const { id, ...fields } = body;
-      if (!id) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!id || !uuidRegex.test(id)) {
         return new Response(JSON.stringify({ error: "id required" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
