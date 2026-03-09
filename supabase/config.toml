@@ -17,3 +17,12 @@ verify_jwt = false
 
 [functions.notify-product-added]
 verify_jwt = false
+
+[functions.api-emails]
+verify_jwt = false
+
+[functions.api-products]
+verify_jwt = false
+
+[functions.api-drafts]
+verify_jwt = false
