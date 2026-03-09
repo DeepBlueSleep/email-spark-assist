@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Email, Status } from "@/data/mockData";
 import { Check, HelpCircle, XCircle, Send, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction } from "@/lib/api";
 import { toast } from "sonner";
 
 interface ActionButtonsProps {
@@ -24,15 +24,10 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange 
   const handleApproveAndSend = async () => {
     setIsSending(true);
     try {
-      // Update email status and store the approved reply
-      await supabase
-        .from("emails")
-        .update({
-          status: "Replied",
-          ai_reply_draft: replyDraft,
-        })
-        .eq("id", email.id);
-
+      await invokeFunction("api-emails", {
+        method: "PATCH",
+        body: { id: email.id, status: "Replied", ai_reply_draft: replyDraft },
+      });
       onStatusChange(email.id, "Replied");
       toast.success(`Reply sent to ${email.customer_name} (${selectedTone} tone)`);
       setShowConfirm(false);
@@ -45,11 +40,10 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange 
 
   const handleRequestInfo = async () => {
     try {
-      await supabase
-        .from("emails")
-        .update({ status: "Awaiting Customer" })
-        .eq("id", email.id);
-
+      await invokeFunction("api-emails", {
+        method: "PATCH",
+        body: { id: email.id, status: "Awaiting Customer" },
+      });
       onStatusChange(email.id, "Awaiting Customer");
       toast.success("Information request sent");
       setShowRequestInfo(false);
@@ -61,11 +55,10 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange 
   const handleEscalate = async () => {
     if (!escalateReason.trim()) return;
     try {
-      await supabase
-        .from("emails")
-        .update({ status: "Escalated" })
-        .eq("id", email.id);
-
+      await invokeFunction("api-emails", {
+        method: "PATCH",
+        body: { id: email.id, status: "Escalated" },
+      });
       onStatusChange(email.id, "Escalated");
       toast.success("Email escalated");
       setShowEscalate(false);
@@ -99,7 +92,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange 
         </button>
       </div>
 
-      {/* Confirm Send Modal */}
       {showConfirm && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowConfirm(false)}>
           <div className="bg-card rounded-xl shadow-elevated p-6 max-w-lg w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
@@ -125,7 +117,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange 
         </div>
       )}
 
-      {/* Request More Info Modal */}
       {showRequestInfo && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowRequestInfo(false)}>
           <div className="bg-card rounded-xl shadow-elevated p-6 max-w-lg w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
@@ -146,7 +137,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange 
         </div>
       )}
 
-      {/* Escalate Modal */}
       {showEscalate && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowEscalate(false)}>
           <div className="bg-card rounded-xl shadow-elevated p-6 max-w-md w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>

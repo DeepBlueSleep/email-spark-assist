@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction } from "@/lib/api";
 import { Email, Status, Sentiment, Intent, ExtractedOrderItem, RecommendedSKU, mockEmails } from "@/data/mockData";
 
 interface SkuRef {
@@ -14,48 +14,20 @@ export function useEmails() {
 
   const fetchEmails = useCallback(async () => {
     try {
-      const { data: dbEmails, error } = await supabase
-        .from("emails")
-        .select("*")
-        .order("timestamp", { ascending: false });
+      const data = await invokeFunction("api-emails");
 
-      if (error) throw error;
+      const dbEmails = data.emails || [];
+      const orderItems = data.order_items || [];
+      const productsArr = data.products || [];
 
-      if (dbEmails && dbEmails.length > 0) {
-        const emailIds = dbEmails.map((e) => e.id);
-
-        // Fetch order items
-        const { data: orderItems } = await supabase
-          .from("order_items")
-          .select("*")
-          .in("email_id", emailIds);
-
-        // Collect all sku_codes from all emails' recommended_sku_codes
-        const allSkuRefs: SkuRef[] = [];
-        for (const e of dbEmails) {
-          const refs = (e as any).recommended_sku_codes as SkuRef[] | null;
-          if (refs && Array.isArray(refs)) {
-            allSkuRefs.push(...refs);
-          }
-        }
-        const uniqueSkuCodes = [...new Set(allSkuRefs.map((r) => r.sku_code))];
-
-        // Fetch product details for recommended SKUs
-        let productsMap: Record<string, any> = {};
-        if (uniqueSkuCodes.length > 0) {
-          const { data: products } = await supabase
-            .from("products")
-            .select("*")
-            .in("sku_code", uniqueSkuCodes);
-          if (products) {
-            for (const p of products) {
-              productsMap[p.sku_code] = p;
-            }
-          }
+      if (dbEmails.length > 0) {
+        const productsMap: Record<string, any> = {};
+        for (const p of productsArr) {
+          productsMap[p.sku_code] = p;
         }
 
-        const mapped: Email[] = dbEmails.map((e) => {
-          const skuRefs = ((e as any).recommended_sku_codes as SkuRef[] | null) || [];
+        const mapped: Email[] = dbEmails.map((e: any) => {
+          const skuRefs = (e.recommended_sku_codes as SkuRef[] | null) || [];
           return {
             id: e.id,
             customer_name: e.customer_name,
@@ -68,8 +40,8 @@ export function useEmails() {
             intent: (e.intent || "General Question") as Intent,
             intent_confidence: Number(e.intent_confidence) || 0,
             extracted_order: (orderItems || [])
-              .filter((oi) => oi.email_id === e.id)
-              .map((oi) => ({
+              .filter((oi: any) => oi.email_id === e.id)
+              .map((oi: any) => ({
                 id: oi.id,
                 item_code: oi.item_code,
                 item_name: oi.item_name,
@@ -113,21 +85,9 @@ export function useEmails() {
 
   useEffect(() => {
     fetchEmails();
-
-    const channel = supabase
-      .channel("emails-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "emails" },
-        () => {
-          fetchEmails();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Poll every 10 seconds instead of realtime (NeonDB has no realtime)
+    const interval = setInterval(fetchEmails, 10000);
+    return () => clearInterval(interval);
   }, [fetchEmails]);
 
   const updateStatus = useCallback(
@@ -135,7 +95,7 @@ export function useEmails() {
       setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
 
       if (usingLiveData) {
-        supabase.from("emails").update({ status }).eq("id", id).then();
+        invokeFunction("api-emails", { method: "PATCH", body: { id, status } }).catch(console.error);
       }
     },
     [usingLiveData]

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { invokeFunction } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
 import { Bot, Plus, Search, Package, Edit2, Trash2, X, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -46,22 +47,21 @@ export default function Products() {
   const [tagsInput, setTagsInput] = useState("");
 
   const fetchProducts = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (!error && data) {
-      setProducts(data as Product[]);
+    try {
+      const data = await invokeFunction("api-products");
+      if (data.products) {
+        setProducts(data.products as Product[]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
     }
   }, []);
 
   useEffect(() => {
     fetchProducts();
-    const channel = supabase
-      .channel("products-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => fetchProducts())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Poll every 10 seconds
+    const interval = setInterval(fetchProducts, 10000);
+    return () => clearInterval(interval);
   }, [fetchProducts]);
 
   const filtered = products.filter(
@@ -93,28 +93,33 @@ export default function Products() {
     const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
     const payload = { ...form, tags };
 
-    if (editing) {
-      const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
-      if (error) { toast.error(error.message); return; }
-      toast.success("Product updated");
-    } else {
-      const { data, error } = await supabase.from("products").insert(payload).select().single();
-      if (error) { toast.error(error.message); return; }
-      toast.success("Product added");
-      // Notify external webhook about the new product
-      supabase.functions.invoke("notify-product-added", { body: data }).catch((err) =>
-        console.error("Failed to notify product webhook:", err)
-      );
+    try {
+      if (editing) {
+        await invokeFunction("api-products", { method: "PATCH", body: { id: editing.id, ...payload } });
+        toast.success("Product updated");
+      } else {
+        const data = await invokeFunction("api-products", { method: "POST", body: payload });
+        toast.success("Product added");
+        // Notify external webhook about the new product
+        supabase.functions.invoke("notify-product-added", { body: data.product }).catch((err) =>
+          console.error("Failed to notify product webhook:", err)
+        );
+      }
+      setShowForm(false);
+      fetchProducts();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save product");
     }
-    setShowForm(false);
-    fetchProducts();
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Product deleted");
-    fetchProducts();
+    try {
+      await invokeFunction("api-products", { method: "DELETE", body: { id } });
+      toast.success("Product deleted");
+      fetchProducts();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete product");
+    }
   };
 
   return (
@@ -196,7 +201,6 @@ export default function Products() {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowForm(false)}>
           <div className="bg-card rounded-xl shadow-elevated p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto animate-fade-in" onClick={(e) => e.stopPropagation()}>

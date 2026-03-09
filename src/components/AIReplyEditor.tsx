@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { MessageSquare, RefreshCw, ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction } from "@/lib/api";
 
 interface AIReplyEditorProps {
   emailId: string;
@@ -19,25 +19,25 @@ export function AIReplyEditor({ emailId, draft, onChange }: AIReplyEditorProps) 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [hasDrafts, setHasDrafts] = useState(false);
 
-  // Fetch multi-tone drafts from DB
   useEffect(() => {
     async function fetchDrafts() {
-      const { data, error } = await supabase
-        .from("ai_reply_drafts")
-        .select("tone, draft")
-        .eq("email_id", emailId);
+      try {
+        const data = await invokeFunction("api-drafts", { params: { email_id: emailId } });
+        const draftsList = data.drafts || [];
 
-      if (!error && data && data.length > 0) {
-        const map: Record<string, string> = {};
-        (data as DraftRecord[]).forEach((d) => {
-          map[d.tone] = d.draft;
-        });
-        setDrafts(map);
-        setHasDrafts(true);
-        // Set to Professional draft if available
-        if (map["Professional"]) {
-          onChange(map["Professional"]);
+        if (draftsList.length > 0) {
+          const map: Record<string, string> = {};
+          (draftsList as DraftRecord[]).forEach((d) => {
+            map[d.tone] = d.draft;
+          });
+          setDrafts(map);
+          setHasDrafts(true);
+          if (map["Professional"]) {
+            onChange(map["Professional"]);
+          }
         }
+      } catch (err) {
+        console.error("Failed to fetch drafts:", err);
       }
     }
     fetchDrafts();
