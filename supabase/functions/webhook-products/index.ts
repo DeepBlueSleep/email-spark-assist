@@ -1,20 +1,11 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-webhook-secret",
-};
+import { getDb, corsHeaders } from "../_shared/db.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const sql = getDb();
 
   try {
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
@@ -22,20 +13,14 @@ Deno.serve(async (req) => {
       const providedSecret = req.headers.get("x-webhook-secret");
       if (providedSecret !== webhookSecret) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
     const payload = await req.json();
+    await sql`INSERT INTO webhook_logs (endpoint, payload) VALUES ('webhook-products', ${JSON.stringify(payload)}::jsonb)`;
 
-    await supabase.from("webhook_logs").insert({
-      endpoint: "webhook-products",
-      payload,
-    });
-
-    // Support single product or array of products
     const products = Array.isArray(payload) ? payload : payload.products ? payload.products : [payload];
 
     const upsertData = products.map((p: any) => ({
@@ -54,7 +39,6 @@ Deno.serve(async (req) => {
       is_active: p.is_active !== undefined ? p.is_active : true,
     }));
 
-    // Filter out items without sku_code
     const validProducts = upsertData.filter((p: any) => p.sku_code);
 
     if (validProducts.length === 0) {
@@ -64,27 +48,35 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data, error } = await supabase
-      .from("products")
-      .upsert(validProducts, { onConflict: "sku_code" })
-      .select();
+    const inserted = [];
+    for (const p of validProducts) {
+      const rows = await sql`
+        INSERT INTO products (sku_code, name, category, subcategory, tags, color, size, material, price, stock_level, description, image_url, is_active)
+        VALUES (${p.sku_code}, ${p.name}, ${p.category}, ${p.subcategory}, ${p.tags}, ${p.color}, ${p.size}, ${p.material}, ${p.price}, ${p.stock_level}, ${p.description}, ${p.image_url}, ${p.is_active})
+        ON CONFLICT (sku_code) DO UPDATE SET
+          name = EXCLUDED.name, category = EXCLUDED.category, subcategory = EXCLUDED.subcategory,
+          tags = EXCLUDED.tags, color = EXCLUDED.color, size = EXCLUDED.size, material = EXCLUDED.material,
+          price = EXCLUDED.price, stock_level = EXCLUDED.stock_level, description = EXCLUDED.description,
+          image_url = EXCLUDED.image_url, is_active = EXCLUDED.is_active, updated_at = now()
+        RETURNING *
+      `;
+      inserted.push(...rows);
+    }
 
-    if (error) throw error;
-
-    // Notify external webhook about added products
+    // Notify external webhook
     const notifyUrl = "https://n8n.srv1031900.hstgr.cloud/webhook-test/a2647686-dd8d-492b-b418-dae2c37045e8";
     try {
       await fetch(notifyUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: "products_upserted", products: data }),
+        body: JSON.stringify({ event: "products_upserted", products: inserted }),
       });
     } catch (e) {
       console.error("Failed to notify product webhook:", e);
     }
 
     return new Response(
-      JSON.stringify({ success: true, count: data?.length || 0 }),
+      JSON.stringify({ success: true, count: inserted.length }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

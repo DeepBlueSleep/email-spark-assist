@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { RecommendedSKU } from "@/data/mockData";
 import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction } from "@/lib/api";
 
 interface DraftOrderItem {
   id: string;
@@ -54,7 +54,6 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Reset when SKUs change (email switch)
   const [prevSkus, setPrevSkus] = useState(recommendedSkus);
   if (recommendedSkus !== prevSkus) {
     setPrevSkus(recommendedSkus);
@@ -77,7 +76,7 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
     setSearchQuery("");
   }
 
-  // Search products from knowledge base
+  // Search products via API
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -85,18 +84,17 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
     }
     const timeout = setTimeout(async () => {
       setSearching(true);
-      const { data } = await supabase
-        .from("products")
-        .select("id, sku_code, name, category, color, size, price, stock_level")
-        .or(`name.ilike.%${searchQuery}%,sku_code.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`)
-        .limit(8);
-      setSearchResults(data || []);
+      try {
+        const data = await invokeFunction("api-products", { params: { search: searchQuery } });
+        setSearchResults((data.products || []).slice(0, 8));
+      } catch {
+        setSearchResults([]);
+      }
       setSearching(false);
     }, 300);
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  // Close search on click outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -110,7 +108,7 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
 
   const addProductFromSearch = (product: ProductResult) => {
     const existing = items.find((i) => i.sku_code === product.sku_code);
-    if (existing) return; // already in order
+    if (existing) return;
     const newItem: DraftOrderItem = {
       id: `do-${product.sku_code}-${Date.now()}`,
       sku_code: product.sku_code,
@@ -172,7 +170,6 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
               <button onClick={() => { setShowSearch(false); setSearchQuery(""); }} className="p-1 text-muted-foreground hover:text-foreground">
                 <X className="w-3.5 h-3.5" />
               </button>
-              {/* Dropdown results */}
               {searchQuery.trim() && (
                 <div className="absolute top-full right-0 mt-1 w-72 bg-popover border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
                   {searching ? (
@@ -240,42 +237,19 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
               {items.map((item) => (
                 <tr key={item.id} className="border-b border-border/50 hover:bg-accent/30">
                   <td className="py-2 px-2">
-                    <input
-                      value={item.sku_code}
-                      onChange={(e) => updateItem(item.id, "sku_code", e.target.value)}
-                      className="w-24 text-xs font-mono px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30"
-                    />
+                    <input value={item.sku_code} onChange={(e) => updateItem(item.id, "sku_code", e.target.value)} className="w-24 text-xs font-mono px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
                   </td>
                   <td className="py-2 px-2">
-                    <input
-                      value={item.name}
-                      onChange={(e) => updateItem(item.id, "name", e.target.value)}
-                      className="w-full min-w-[120px] text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30"
-                    />
+                    <input value={item.name} onChange={(e) => updateItem(item.id, "name", e.target.value)} className="w-full min-w-[120px] text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
                   </td>
                   <td className="py-2 px-2">
                     <div className="flex flex-wrap gap-1">
-                      <input
-                        value={item.color}
-                        onChange={(e) => updateItem(item.id, "color", e.target.value)}
-                        placeholder="Color"
-                        className="w-16 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30"
-                      />
-                      <input
-                        value={item.size}
-                        onChange={(e) => updateItem(item.id, "size", e.target.value)}
-                        placeholder="Size"
-                        className="w-20 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30"
-                      />
+                      <input value={item.color} onChange={(e) => updateItem(item.id, "color", e.target.value)} placeholder="Color" className="w-16 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                      <input value={item.size} onChange={(e) => updateItem(item.id, "size", e.target.value)} placeholder="Size" className="w-20 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30" />
                     </div>
                   </td>
                   <td className="py-2 px-2">
-                    <input
-                      type="number"
-                      value={item.price}
-                      onChange={(e) => updateItem(item.id, "price", parseFloat(e.target.value) || 0)}
-                      className="w-16 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30"
-                    />
+                    <input type="number" value={item.price} onChange={(e) => updateItem(item.id, "price", parseFloat(e.target.value) || 0)} className="w-16 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
                   </td>
                   <td className="py-2 px-2">
                     <span className={cn("text-xs", item.stock_level > 10 ? "text-sentiment-positive" : "text-sentiment-negative")}>
@@ -283,20 +257,11 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
                     </span>
                   </td>
                   <td className="py-2 px-2">
-                    <input
-                      type="number"
-                      min={1}
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)}
-                      className="w-14 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30"
-                    />
+                    <input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)} className="w-14 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
                   </td>
                   <td className="py-2 px-2 text-[10px] text-primary/70 italic max-w-[180px]">{item.match_reason}</td>
                   <td className="py-2 px-2">
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    >
+                    <button onClick={() => removeItem(item.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </td>
@@ -307,7 +272,6 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
         </div>
       )}
 
-      {/* Removed products panel */}
       {removed.length > 0 && (
         <div className="border-t border-border pt-4">
           <div className="flex items-center gap-2 mb-3">
