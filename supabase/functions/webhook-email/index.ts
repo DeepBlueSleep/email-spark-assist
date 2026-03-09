@@ -1,9 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
-};
+import { getDb, corsHeaders } from "../_shared/db.ts";
 
 interface ParsedEmail {
   customer_name: string;
@@ -16,29 +11,22 @@ interface ParsedEmail {
 }
 
 function parseN8nParsedFormat(raw: any): ParsedEmail | null {
-  // New n8n format with structured from/to objects, text, html, messageId
   if (!raw.from?.value && !raw.messageId) return null;
-
   const fromEntry = raw.from?.value?.[0];
   const customer_name = fromEntry?.name || fromEntry?.address || "Unknown Sender";
   const customer_email = fromEntry?.address || "unknown@unknown.com";
-
   let body = raw.text || "";
   if (!body && raw.html) {
     body = raw.html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   }
-
-  // Extract attachment filenames if present
   const attachments: string[] = [];
   if (raw.attachments && Array.isArray(raw.attachments)) {
     for (const att of raw.attachments) {
       if (att.filename) attachments.push(att.filename);
     }
   }
-
   return {
-    customer_name,
-    customer_email,
+    customer_name, customer_email,
     subject: raw.subject || "(No Subject)",
     body,
     external_id: raw.messageId || crypto.randomUUID(),
@@ -48,17 +36,13 @@ function parseN8nParsedFormat(raw: any): ParsedEmail | null {
 }
 
 function parseGmailRawFormat(raw: any): ParsedEmail | null {
-  // Gmail API format with payload.headers, labelIds, etc.
   if (!raw.payload?.headers && !raw.labelIds) return null;
-
   const headers = raw.payload?.headers || [];
   const getHeader = (name: string) =>
     headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
-
   let bodyText = "";
   const parts = raw.payload?.parts || [];
   const bodyData = raw.payload?.body?.data;
-
   if (bodyData) {
     bodyText = atob(bodyData.replace(/-/g, "+").replace(/_/g, "/"));
   } else {
@@ -77,7 +61,6 @@ function parseGmailRawFormat(raw: any): ParsedEmail | null {
       }
     }
   }
-
   const fromField = getHeader("From") || raw.from || "";
   let customer_name = "";
   let customer_email = "";
@@ -88,7 +71,6 @@ function parseGmailRawFormat(raw: any): ParsedEmail | null {
   } else {
     customer_email = fromField.trim();
   }
-
   return {
     customer_name: customer_name || customer_email || "Unknown Sender",
     customer_email: customer_email || "unknown@unknown.com",
@@ -103,15 +85,12 @@ function parseGmailRawFormat(raw: any): ParsedEmail | null {
 }
 
 function parseFlatFormat(raw: any): ParsedEmail {
-  // Flat/legacy format with direct fields
   let customer_name = raw.customer_name || null;
   let customer_email = raw.email || null;
   let body = raw.body || raw.textPlain || raw.snippet || "";
-
   if (body.startsWith("<") || body.includes("<div") || body.includes("<p")) {
     body = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   }
-
   const fromField = raw.from || raw.From || "";
   if (!customer_email && fromField) {
     const match = fromField.match(/(.*)<(.*)>/);
@@ -122,7 +101,6 @@ function parseFlatFormat(raw: any): ParsedEmail {
       customer_email = fromField.trim();
     }
   }
-
   return {
     customer_name: customer_name || customer_email || "Unknown Sender",
     customer_email: customer_email || "unknown@unknown.com",
@@ -144,22 +122,19 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const sql = getDb();
 
   try {
-    // Optional: verify webhook secret
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
     if (webhookSecret) {
       const providedSecret = req.headers.get("x-webhook-secret");
       if (providedSecret !== webhookSecret) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
-    // Handle both JSON and form data
     let payload: any;
     const contentType = req.headers.get("content-type") || "";
 
@@ -167,7 +142,6 @@ Deno.serve(async (req) => {
       const formData = await req.formData();
       const payloadField = formData.get("payload");
       payload = payloadField ? JSON.parse(payloadField as string) : null;
-      // Attachment files from form data (filenames logged)
       const attachmentFiles: string[] = [];
       for (const [key, value] of formData.entries()) {
         if (key === "attachment" && value instanceof File) {
@@ -186,111 +160,68 @@ Deno.serve(async (req) => {
 
     if (!payload) {
       return new Response(JSON.stringify({ error: "No payload provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Log the webhook
-    await supabase.from("webhook_logs").insert({
-      endpoint: "webhook-email",
-      payload: typeof payload === "object" ? payload : { raw: String(payload) },
-    });
+    // Log webhook
+    await sql`INSERT INTO webhook_logs (endpoint, payload) VALUES ('webhook-email', ${JSON.stringify(payload)}::jsonb)`;
 
-    // Support single or batch emails
     const emails = Array.isArray(payload) ? payload : [payload];
     const results = [];
 
     for (const rawData of emails) {
       const { parsed, raw } = parseEmail(rawData);
 
-      // Merge form-level attachments
       if (rawData._formAttachments?.length && !parsed.attachments.length) {
         parsed.attachments = rawData._formAttachments;
       }
 
-      // Insert the email
-      const { data: email, error: emailError } = await supabase
-        .from("emails")
-        .upsert(
-          {
-            external_id: parsed.external_id,
-            customer_name: parsed.customer_name,
-            email: parsed.customer_email,
-            subject: parsed.subject,
-            body: parsed.body,
-            timestamp: parsed.timestamp,
-            sentiment: raw.sentiment || "Neutral",
-            sentiment_confidence: raw.sentiment_confidence || 0,
-            intent: raw.intent || "General Question",
-            intent_confidence: raw.intent_confidence || 0,
-            ai_reply_draft: raw.ai_reply_draft || "",
-            status: raw.status || "New",
-            attachments: parsed.attachments,
-          },
-          { onConflict: "external_id" },
+      // Upsert email
+      const rows = await sql`
+        INSERT INTO emails (external_id, customer_name, email, subject, body, timestamp, sentiment, sentiment_confidence, intent, intent_confidence, ai_reply_draft, status, attachments)
+        VALUES (
+          ${parsed.external_id}, ${parsed.customer_name}, ${parsed.customer_email},
+          ${parsed.subject}, ${parsed.body}, ${parsed.timestamp},
+          ${raw.sentiment || "Neutral"}, ${raw.sentiment_confidence || 0},
+          ${raw.intent || "General Question"}, ${raw.intent_confidence || 0},
+          ${raw.ai_reply_draft || ""}, ${raw.status || "New"}, ${parsed.attachments}
         )
-        .select()
-        .single();
+        ON CONFLICT (external_id) DO UPDATE SET
+          customer_name = EXCLUDED.customer_name, email = EXCLUDED.email,
+          subject = EXCLUDED.subject, body = EXCLUDED.body, timestamp = EXCLUDED.timestamp,
+          sentiment = EXCLUDED.sentiment, sentiment_confidence = EXCLUDED.sentiment_confidence,
+          intent = EXCLUDED.intent, intent_confidence = EXCLUDED.intent_confidence,
+          ai_reply_draft = EXCLUDED.ai_reply_draft, status = EXCLUDED.status,
+          attachments = EXCLUDED.attachments, updated_at = now()
+        RETURNING id, external_id
+      `;
 
-      if (emailError) throw emailError;
+      const email = rows[0];
 
-      // Insert order items if provided
+      // Insert order items
       if (raw.extracted_order?.length > 0) {
-        const orderItems = raw.extracted_order.map((item: any) => ({
-          email_id: email.id,
-          item_code: item.item_code,
-          item_name: item.item_name,
-          quantity: item.quantity || 1,
-          unit: item.unit || "units",
-          delivery_date: item.delivery_date || "",
-          delivery_address: item.delivery_address || "",
-          remarks: item.remarks || "",
-        }));
-
-        const { error: orderError } = await supabase.from("order_items").insert(orderItems);
-        if (orderError) throw orderError;
-      }
-
-      // Insert recommended SKUs if provided
-      if (raw.recommended_skus?.length > 0) {
-        const skus = raw.recommended_skus.map((sku: any) => ({
-          email_id: email.id,
-          sku_code: sku.sku_code,
-          name: sku.name,
-          category: sku.category || "",
-          color: sku.color || "",
-          size: sku.size || "",
-          price: sku.price || 0,
-          stock_level: sku.stock_level || 0,
-          match_reason: sku.match_reason || "",
-          image_url: sku.image_url || "",
-        }));
-
-        const { error: skuError } = await supabase.from("recommended_skus").insert(skus);
-        if (skuError) throw skuError;
+        for (const item of raw.extracted_order) {
+          await sql`
+            INSERT INTO order_items (email_id, item_code, item_name, quantity, unit, delivery_date, delivery_address, remarks)
+            VALUES (${email.id}, ${item.item_code}, ${item.item_name}, ${item.quantity || 1}, ${item.unit || "units"}, ${item.delivery_date || ""}, ${item.delivery_address || ""}, ${item.remarks || ""})
+          `;
+        }
       }
 
       results.push({ id: email.id, external_id: email.external_id });
     }
 
     return new Response(JSON.stringify({ success: true, emails: results }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Webhook error:", error);
-
-    await supabase.from("webhook_logs").insert({
-      endpoint: "webhook-email",
-      payload: { error: String(error) },
-      status: "error",
-      error_message: String(error),
-    });
-
+    try {
+      await sql`INSERT INTO webhook_logs (endpoint, payload, status, error_message) VALUES ('webhook-email', ${JSON.stringify({ error: String(error) })}::jsonb, 'error', ${String(error)})`;
+    } catch (_) {}
     return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

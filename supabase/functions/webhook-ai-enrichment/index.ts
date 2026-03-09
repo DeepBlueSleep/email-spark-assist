@@ -1,20 +1,11 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-webhook-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { getDb, corsHeaders } from "../_shared/db.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const sql = getDb();
 
   try {
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
@@ -22,8 +13,7 @@ Deno.serve(async (req) => {
       const providedSecret = req.headers.get("x-webhook-secret");
       if (providedSecret !== webhookSecret) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
@@ -31,117 +21,101 @@ Deno.serve(async (req) => {
     const rawPayload = await req.json();
     const items = Array.isArray(rawPayload) ? rawPayload : [rawPayload];
 
-    await supabase.from("webhook_logs").insert({
-      endpoint: "webhook-ai-enrichment",
-      payload: rawPayload,
-    });
+    await sql`INSERT INTO webhook_logs (endpoint, payload) VALUES ('webhook-ai-enrichment', ${JSON.stringify(rawPayload)}::jsonb)`;
 
     const results = [];
 
     for (const payload of items) {
-      // --- Resolve email ---
       const emailId = payload.email_id;
       const externalId = payload.external_id;
 
-      let query = supabase.from("emails").select("id");
+      let emailRows;
       if (emailId) {
-        query = query.eq("id", emailId);
+        emailRows = await sql`SELECT id FROM emails WHERE id = ${emailId}`;
       } else if (externalId) {
-        query = query.eq("external_id", externalId);
+        emailRows = await sql`SELECT id FROM emails WHERE external_id = ${externalId}`;
       } else {
         results.push({ error: "email_id or external_id required", payload });
         continue;
       }
 
-      const { data: emailRecord, error: findError } = await query.single();
-      if (findError || !emailRecord) {
+      if (!emailRows || emailRows.length === 0) {
         results.push({ error: "Email not found", email_id: emailId, external_id: externalId });
         continue;
       }
 
-      const dbEmailId = emailRecord.id;
+      const dbEmailId = emailRows[0].id;
 
-      // --- 1. Update AI analysis fields on the email ---
-      const updateFields: Record<string, any> = {};
-      if (payload.sentiment !== undefined) updateFields.sentiment = payload.sentiment;
-      if (payload.sentiment_confidence !== undefined) updateFields.sentiment_confidence = payload.sentiment_confidence;
-      if (payload.intent !== undefined) updateFields.intent = payload.intent;
-      if (payload.intent_confidence !== undefined) updateFields.intent_confidence = payload.intent_confidence;
-      if (payload.status !== undefined) updateFields.status = payload.status;
+      // Build update fields
+      const updates: string[] = [];
+      const vals: any = {};
 
-      // --- 2. AI reply drafts ---
+      if (payload.sentiment !== undefined) vals.sentiment = payload.sentiment;
+      if (payload.sentiment_confidence !== undefined) vals.sentiment_confidence = payload.sentiment_confidence;
+      if (payload.intent !== undefined) vals.intent = payload.intent;
+      if (payload.intent_confidence !== undefined) vals.intent_confidence = payload.intent_confidence;
+      if (payload.status !== undefined) vals.status = payload.status;
+
+      // AI reply drafts
       let drafts: { tone: string; draft: string }[] = [];
-
       if (payload.drafts && typeof payload.drafts === "object" && !Array.isArray(payload.drafts)) {
         for (const [tone, text] of Object.entries(payload.drafts)) {
-          if (text) {
-            drafts.push({
-              tone: tone.charAt(0).toUpperCase() + tone.slice(1).toLowerCase(),
-              draft: text as string,
-            });
-          }
+          if (text) drafts.push({ tone: tone.charAt(0).toUpperCase() + tone.slice(1).toLowerCase(), draft: text as string });
         }
       } else if (Array.isArray(payload.drafts)) {
-        drafts = payload.drafts.map((d: any) => ({
-          tone: d.tone || "Professional",
-          draft: d.draft || d.text || d.content || "",
-        }));
+        drafts = payload.drafts.map((d: any) => ({ tone: d.tone || "Professional", draft: d.draft || d.text || d.content || "" }));
       } else if (payload.ai_reply_draft) {
         drafts.push({ tone: "Professional", draft: payload.ai_reply_draft });
       }
 
       if (drafts.length > 0) {
-        await supabase.from("ai_reply_drafts").delete().eq("email_id", dbEmailId);
-        const insertData = drafts.map((d) => ({
-          email_id: dbEmailId,
-          tone: d.tone,
-          draft: d.draft,
-        }));
-        const { error: insertError } = await supabase.from("ai_reply_drafts").insert(insertData);
-        if (insertError) throw insertError;
-
+        await sql`DELETE FROM ai_reply_drafts WHERE email_id = ${dbEmailId}`;
+        for (const d of drafts) {
+          await sql`INSERT INTO ai_reply_drafts (email_id, tone, draft) VALUES (${dbEmailId}, ${d.tone}, ${d.draft})`;
+        }
         const defaultDraft = drafts.find((d) => d.tone === "Professional") || drafts[0];
-        updateFields.ai_reply_draft = defaultDraft.draft;
+        vals.ai_reply_draft = defaultDraft.draft;
       }
 
-      // --- 3. Recommended SKUs (stored as jsonb array on emails) ---
+      // Recommended SKUs
       if (payload.recommended_skus !== undefined) {
         const skuRefs = (payload.recommended_skus || []).map((sku: any) => ({
-          sku_code: sku.sku_code,
-          match_reason: sku.match_reason || "",
+          sku_code: sku.sku_code, match_reason: sku.match_reason || "",
         }));
-        updateFields.recommended_sku_codes = skuRefs;
+        vals.recommended_sku_codes = JSON.stringify(skuRefs);
       }
 
-      if (Object.keys(updateFields).length > 0) {
-        const { error: updateError } = await supabase
-          .from("emails")
-          .update(updateFields)
-          .eq("id", dbEmailId);
-        if (updateError) throw updateError;
+      // Apply updates
+      if (Object.keys(vals).length > 0) {
+        // Build dynamic SET clause
+        const setClauses: string[] = [];
+        if (vals.sentiment !== undefined) setClauses.push(`sentiment = '${vals.sentiment}'`);
+        if (vals.sentiment_confidence !== undefined) setClauses.push(`sentiment_confidence = ${vals.sentiment_confidence}`);
+        if (vals.intent !== undefined) setClauses.push(`intent = '${vals.intent}'`);
+        if (vals.intent_confidence !== undefined) setClauses.push(`intent_confidence = ${vals.intent_confidence}`);
+        if (vals.status !== undefined) setClauses.push(`status = '${vals.status}'`);
+        if (vals.ai_reply_draft !== undefined) setClauses.push(`ai_reply_draft = '${vals.ai_reply_draft.replace(/'/g, "''")}'`);
+        if (vals.recommended_sku_codes !== undefined) setClauses.push(`recommended_sku_codes = '${vals.recommended_sku_codes}'::jsonb`);
+
+        if (setClauses.length > 0) {
+          await sql`UPDATE emails SET ${sql.unsafe(setClauses.join(", "))}, updated_at = now() WHERE id = ${dbEmailId}`;
+        }
       }
 
-      // --- 4. Extracted order items ---
+      // Extracted order items
       if (payload.extracted_order?.length > 0) {
-        await supabase.from("order_items").delete().eq("email_id", dbEmailId);
-        const orderItems = payload.extracted_order.map((item: any) => ({
-          email_id: dbEmailId,
-          item_code: item.item_code,
-          item_name: item.item_name,
-          quantity: item.quantity || 1,
-          unit: item.unit || "units",
-          delivery_date: item.delivery_date || "",
-          delivery_address: item.delivery_address || "",
-          remarks: item.remarks || "",
-        }));
-        const { error } = await supabase.from("order_items").insert(orderItems);
-        if (error) throw error;
+        await sql`DELETE FROM order_items WHERE email_id = ${dbEmailId}`;
+        for (const item of payload.extracted_order) {
+          await sql`
+            INSERT INTO order_items (email_id, item_code, item_name, quantity, unit, delivery_date, delivery_address, remarks)
+            VALUES (${dbEmailId}, ${item.item_code}, ${item.item_name}, ${item.quantity || 1}, ${item.unit || "units"}, ${item.delivery_date || ""}, ${item.delivery_address || ""}, ${item.remarks || ""})
+          `;
+        }
       }
 
       results.push({
-        success: true,
-        email_id: dbEmailId,
-        updated_fields: Object.keys(updateFields),
+        success: true, email_id: dbEmailId,
+        updated_fields: Object.keys(vals),
         drafts_count: drafts.length,
         order_items_count: payload.extracted_order?.length || 0,
         recommended_skus_count: payload.recommended_skus?.length || 0,
