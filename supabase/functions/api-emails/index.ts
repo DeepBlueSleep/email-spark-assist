@@ -40,6 +40,29 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (req.method === "DELETE") {
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        // Try reading from URL params
+        const idsParam = url.searchParams.get("ids");
+        body = idsParam ? { ids: idsParam.split(",") } : {};
+      }
+      const { ids } = body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return new Response(JSON.stringify({ error: "ids array required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Delete order_items first, then emails
+      await sql`DELETE FROM order_items WHERE email_id = ANY(${ids})`;
+      await sql`DELETE FROM emails WHERE id = ANY(${ids}::uuid[])`;
+      return new Response(JSON.stringify({ success: true, deleted: ids.length }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (req.method === "PATCH") {
       // PATCH /api-emails - update email fields
       const body = await req.json();
