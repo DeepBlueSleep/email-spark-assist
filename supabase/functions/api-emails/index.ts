@@ -19,8 +19,26 @@ Deno.serve(async (req) => {
       let emailAttachments: any[] = [];
       if (emailIds.length > 0) {
         orderItems = await sql`SELECT * FROM order_items WHERE email_id = ANY(${emailIds})`;
-        // Fetch attachment metadata (exclude base64 content for listing, include mime_type & size)
-        emailAttachments = await sql`SELECT id, email_id, filename, mime_type, size_bytes, created_at FROM email_attachments WHERE email_id = ANY(${emailIds})`;
+        // Fetch attachment metadata - gracefully handle if table doesn't exist yet
+        try {
+          emailAttachments = await sql`SELECT id, email_id, filename, mime_type, size_bytes, created_at FROM email_attachments WHERE email_id = ANY(${emailIds})`;
+        } catch (e: any) {
+          if (e?.code === "42P01") {
+            // Table doesn't exist yet — create it
+            await sql`CREATE TABLE IF NOT EXISTS email_attachments (
+              id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+              email_id uuid NOT NULL REFERENCES emails(id) ON DELETE CASCADE,
+              filename text NOT NULL DEFAULT 'unnamed',
+              mime_type text NOT NULL DEFAULT 'application/octet-stream',
+              content_base64 text NOT NULL DEFAULT '',
+              size_bytes integer DEFAULT 0,
+              created_at timestamptz NOT NULL DEFAULT now()
+            )`;
+            console.log("[api-emails] Created email_attachments table in NeonDB");
+          } else {
+            throw e;
+          }
+        }
       }
 
       // Get recommended SKU product details
