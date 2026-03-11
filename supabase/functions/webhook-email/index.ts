@@ -168,45 +168,51 @@ Deno.serve(async (req) => {
     //}
 
     if (contentType.includes("multipart/form-data")) {
-      const formData = await req.formData();
+      let formData: FormData | null = null;
 
-      // Try to read payload field normally
-      const payloadField = formData.get("payload");
-
-      if (payloadField) {
-        try {
-          payload = JSON.parse(payloadField as string);
-        } catch {
-          payload = payloadField;
-        }
+      try {
+        formData = await req.formData();
+      } catch (_) {
+        formData = null;
       }
 
-      // If payload field not provided, try reading first JSON-like field
-      if (!payload) {
+      if (formData) {
+        const payloadField = formData.get("payload");
+
+        if (payloadField) {
+          try {
+            payload = JSON.parse(payloadField as string);
+          } catch {
+            payload = payloadField;
+          }
+        }
+
+        const attachmentFiles: string[] = [];
+
         for (const [key, value] of formData.entries()) {
-          if (typeof value === "string" && value.trim().startsWith("{")) {
-            try {
-              payload = JSON.parse(value);
-              break;
-            } catch {
-              payload = value;
-            }
+          if (value instanceof File) {
+            attachmentFiles.push(value.name);
+          }
+        }
+
+        if (payload && attachmentFiles.length > 0) {
+          const items = Array.isArray(payload) ? payload : [payload];
+          for (const item of items) {
+            item._formAttachments = attachmentFiles;
           }
         }
       }
 
-      const attachmentFiles: string[] = [];
+      // Fallback if multipart parsing failed
+      if (!payload) {
+        const raw = await req.text();
 
-      for (const [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          attachmentFiles.push(value.name);
-        }
-      }
+        const match = raw.match(/\{[\s\S]*\}/);
 
-      if (payload && attachmentFiles.length > 0) {
-        const items = Array.isArray(payload) ? payload : [payload];
-        for (const item of items) {
-          item._formAttachments = attachmentFiles;
+        if (match) {
+          try {
+            payload = JSON.parse(match[0]);
+          } catch (_) {}
         }
       }
     } else {
