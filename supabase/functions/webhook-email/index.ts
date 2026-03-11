@@ -231,31 +231,16 @@ Deno.serve(async (req) => {
       console.log("[webhook-email] rawData keys:", Object.keys(rawData));
       
       // Keep unwrapping .payload until we find actual email data or there's no more .payload
-      let maxDepth = 5;
-      while (rawData.payload && typeof rawData.payload === "object" && maxDepth-- > 0) {
-        const p = rawData.payload;
-        // Check if this level has email-like fields
-        if (p.from || p.headers || p.messageId || p.subject || p.text || p.html) {
-          console.log("[webhook-email] Found email data at payload level, unwrapping");
-          // Collect attachments from current level before unwrapping
-          if (rawData.attachments && Array.isArray(rawData.attachments)) {
-            inlineAttachments = rawData.attachments
-              .map((a: any) => a.filename)
-              .filter(Boolean);
-            console.log("[webhook-email] Extracted", inlineAttachments.length, "attachment filenames:", inlineAttachments);
-          }
-          rawData = p;
-          break;
-        }
-        // No email fields at this level, but there's a nested payload - go deeper
-        console.log("[webhook-email] No email fields at this level, unwrapping payload (keys:", Object.keys(p), ")");
-        // Collect attachments from current level
+      while (rawData.payload && typeof rawData.payload === "object") {
+        // Collect attachments from current level before going deeper
         if (rawData.attachments && Array.isArray(rawData.attachments)) {
           inlineAttachments = rawData.attachments
             .map((a: any) => a.filename)
             .filter(Boolean);
+          console.log("[webhook-email] Extracted", inlineAttachments.length, "attachment filenames:", inlineAttachments);
         }
-        rawData = p;
+        console.log("[webhook-email] Unwrapping payload (keys:", Object.keys(rawData.payload), ")");
+        rawData = rawData.payload;
       }
 
       console.log("[webhook-email] Pre-parse rawData keys:", Object.keys(rawData));
