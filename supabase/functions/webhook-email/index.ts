@@ -1,5 +1,12 @@
 import { getDb, corsHeaders } from "../_shared/db.ts";
 
+interface AttachmentData {
+  filename: string;
+  content?: string;       // base64 content
+  contentType?: string;   // mime type
+  size?: number;
+}
+
 interface ParsedEmail {
   customer_name: string;
   customer_email: string;
@@ -8,6 +15,7 @@ interface ParsedEmail {
   external_id: string;
   timestamp: string;
   attachments: string[];
+  attachmentData: AttachmentData[];
 }
 
 function parseN8nParsedFormat(raw: any): ParsedEmail | null {
@@ -23,9 +31,18 @@ function parseN8nParsedFormat(raw: any): ParsedEmail | null {
       .trim();
   }
   const attachments: string[] = [];
+  const attachmentData: AttachmentData[] = [];
   if (raw.attachments && Array.isArray(raw.attachments)) {
     for (const att of raw.attachments) {
-      if (att.filename) attachments.push(att.filename);
+      if (att.filename) {
+        attachments.push(att.filename);
+        attachmentData.push({
+          filename: att.filename,
+          content: att.content || att.data || att.content_base64 || "",
+          contentType: att.contentType || att.mimeType || att.mime_type || "application/octet-stream",
+          size: att.size || 0,
+        });
+      }
     }
   }
   return {
@@ -36,6 +53,7 @@ function parseN8nParsedFormat(raw: any): ParsedEmail | null {
     external_id: raw.messageId || crypto.randomUUID(),
     timestamp: raw.date || new Date().toISOString(),
     attachments,
+    attachmentData,
   };
 }
 
@@ -85,6 +103,7 @@ function parseGmailRawFormat(raw: any): ParsedEmail | null {
       ? new Date(parseInt(raw.internalDate)).toISOString()
       : getHeader("Date") || new Date().toISOString(),
     attachments: raw.attachments || [],
+    attachmentData: [],
   };
 }
 
@@ -117,6 +136,7 @@ function parseFlatFormat(raw: any): ParsedEmail {
       raw.external_id || raw.message_id || raw.messageId || raw["message-id"] || raw.id || crypto.randomUUID(),
     timestamp: raw.timestamp || raw.date || new Date().toISOString(),
     attachments: raw.attachments || [],
+    attachmentData: [],
   };
 }
 
@@ -147,7 +167,6 @@ Deno.serve(async (req) => {
     const contentType = req.headers.get("content-type") || "";
     console.log("[webhook-email] Content-Type:", contentType);
 
-    // Read raw body first so we can log and re-parse
     const rawBody = await req.text();
     console.log("[webhook-email] Raw body length:", rawBody.length);
     console.log("[webhook-email] Raw body preview:", rawBody.substring(0, 500));
@@ -156,27 +175,19 @@ Deno.serve(async (req) => {
 
     if (contentType.includes("multipart/form-data")) {
       console.log("[webhook-email] Detected multipart/form-data");
-      
-      // For multipart, try to extract JSON from the body
-      // Look for JSON array or object patterns
       const jsonPatterns = [
-        rawBody.match(/(\[[\s\S]*\])\s*$/),  // JSON array
-        rawBody.match(/(\{[\s\S]*\})\s*$/),   // JSON object
+        rawBody.match(/(\[[\s\S]*\])\s*$/),
+        rawBody.match(/(\{[\s\S]*\})\s*$/),
       ];
-      
       for (const match of jsonPatterns) {
         if (match) {
           try {
             payload = JSON.parse(match[1]);
             console.log("[webhook-email] Extracted JSON from multipart body");
             break;
-          } catch (_) {
-            // Try next pattern
-          }
+          } catch (_) {}
         }
       }
-      
-      // If that didn't work, try finding JSON between multipart boundaries
       if (!payload) {
         const parts = rawBody.split(/------WebKitFormBoundary|--[\w-]+/);
         for (const part of parts) {
@@ -184,7 +195,6 @@ Deno.serve(async (req) => {
           if (jsonMatch) {
             try {
               payload = JSON.parse(jsonMatch[0]);
-              console.log("[webhook-email] Extracted JSON from multipart part");
               break;
             } catch (_) {}
           }
@@ -192,24 +202,20 @@ Deno.serve(async (req) => {
           if (objMatch) {
             try {
               payload = JSON.parse(objMatch[0]);
-              console.log("[webhook-email] Extracted JSON object from multipart part");
               break;
             } catch (_) {}
           }
         }
       }
     } else {
-      // Standard JSON body
       try {
         payload = JSON.parse(rawBody);
-        console.log("[webhook-email] Parsed as JSON, type:", Array.isArray(payload) ? "array" : typeof payload);
       } catch (e) {
         console.error("[webhook-email] JSON parse failed:", e.message);
       }
     }
 
     if (!payload) {
-      console.error("[webhook-email] No payload could be extracted");
       await sql`INSERT INTO webhook_logs (endpoint, payload, status, error_message) VALUES ('webhook-email', ${JSON.stringify({ rawPreview: rawBody.substring(0, 1000) })}::jsonb, 'error', 'No payload could be extracted')`;
       return new Response(JSON.stringify({ error: "No payload provided" }), {
         status: 400,
@@ -217,7 +223,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Log webhook
     await sql`INSERT INTO webhook_logs (endpoint, payload) VALUES ('webhook-email', ${JSON.stringify(payload)}::jsonb)`;
 
     const emails = Array.isArray(payload) ? payload : [payload];
@@ -225,37 +230,37 @@ Deno.serve(async (req) => {
     const results = [];
 
     for (let rawData of emails) {
-      // Recursively unwrap nested payload objects (n8n sometimes sends {payload: {payload: {...}, attachments: [...]}})
+      // Collect attachment data from all wrapper levels
       let inlineAttachments: string[] = [];
-      
-      console.log("[webhook-email] rawData keys:", Object.keys(rawData));
-      
-      // Keep unwrapping .payload until we find actual email data or there's no more .payload
+      let inlineAttachmentData: AttachmentData[] = [];
+
       let unwrapDepth = 0;
       while (rawData.payload && typeof rawData.payload === "object" && unwrapDepth++ < 20) {
-        // Collect attachments from current level before going deeper
         if (rawData.attachments && Array.isArray(rawData.attachments)) {
-          inlineAttachments = rawData.attachments
-            .map((a: any) => a.filename)
-            .filter(Boolean);
-          console.log("[webhook-email] Extracted", inlineAttachments.length, "attachment filenames:", inlineAttachments);
+          inlineAttachments = [];
+          inlineAttachmentData = [];
+          for (const att of rawData.attachments) {
+            if (att.filename) {
+              inlineAttachments.push(att.filename);
+              inlineAttachmentData.push({
+                filename: att.filename,
+                content: att.content || att.data || att.content_base64 || "",
+                contentType: att.contentType || att.mimeType || att.mime_type || "application/octet-stream",
+                size: att.size || 0,
+              });
+            }
+          }
+          console.log("[webhook-email] Extracted", inlineAttachments.length, "attachments at depth", unwrapDepth);
         }
-        console.log("[webhook-email] Unwrapping payload (keys:", Object.keys(rawData.payload), ")");
         rawData = rawData.payload;
       }
 
-      console.log("[webhook-email] Pre-parse rawData keys:", Object.keys(rawData));
-      console.log("[webhook-email] rawData.from:", JSON.stringify(rawData.from)?.substring(0, 200));
-      console.log("[webhook-email] rawData.subject:", rawData.subject);
-      console.log("[webhook-email] rawData.messageId:", rawData.messageId);
-
       const { parsed, raw } = parseEmail(rawData);
 
-      console.log("[webhook-email] Parsed result - name:", parsed.customer_name, "subject:", parsed.subject, "body length:", parsed.body.length);
-
-      // Merge attachments from wrapper format
+      // Merge attachments from wrapper if parsed didn't find any
       if (inlineAttachments.length > 0 && !parsed.attachments.length) {
         parsed.attachments = inlineAttachments;
+        parsed.attachmentData = inlineAttachmentData;
       }
 
       if (rawData._formAttachments?.length && !parsed.attachments.length) {
@@ -284,6 +289,21 @@ Deno.serve(async (req) => {
 
       const email = rows[0];
       console.log("[webhook-email] Upserted email:", email.id, email.external_id);
+
+      // Store attachment base64 data
+      if (parsed.attachmentData.length > 0) {
+        // Delete existing attachments for this email (in case of upsert)
+        await sql`DELETE FROM email_attachments WHERE email_id = ${email.id}`;
+        
+        for (const att of parsed.attachmentData) {
+          const sizeBytes = att.size || (att.content ? Math.ceil(att.content.length * 3 / 4) : 0);
+          await sql`
+            INSERT INTO email_attachments (email_id, filename, mime_type, content_base64, size_bytes)
+            VALUES (${email.id}, ${att.filename}, ${att.contentType || "application/octet-stream"}, ${att.content || ""}, ${sizeBytes})
+          `;
+        }
+        console.log("[webhook-email] Stored", parsed.attachmentData.length, "attachment(s) for email", email.id);
+      }
 
       // Insert order items
       if (raw.extracted_order?.length > 0) {

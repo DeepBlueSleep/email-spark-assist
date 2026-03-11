@@ -46,6 +46,44 @@ export type Database = {
           },
         ]
       }
+      email_attachments: {
+        Row: {
+          content_base64: string
+          created_at: string
+          email_id: string
+          filename: string
+          id: string
+          mime_type: string
+          size_bytes: number | null
+        }
+        Insert: {
+          content_base64?: string
+          created_at?: string
+          email_id: string
+          filename?: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number | null
+        }
+        Update: {
+          content_base64?: string
+          created_at?: string
+          email_id?: string
+          filename?: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_attachments_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emails: {
         Row: {
           ai_reply_draft: string | null

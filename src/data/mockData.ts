@@ -25,6 +25,14 @@ export interface RecommendedSKU {
   image_url: string;
 }
 
+export interface AttachmentMeta {
+  id: string;
+  email_id: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+}
+
 export interface Email {
   id: string;
   customer_name: string;
@@ -41,6 +49,7 @@ export interface Email {
   ai_reply_draft: string;
   status: Status;
   attachments?: string[];
+  attachmentsMeta?: AttachmentMeta[];
 }
 
 export const mockEmails: Email[] = [

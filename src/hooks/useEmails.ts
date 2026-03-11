@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { invokeFunction } from "@/lib/api";
-import { Email, Status, Sentiment, Intent, ExtractedOrderItem, RecommendedSKU, mockEmails } from "@/data/mockData";
+import { Email, Status, Sentiment, Intent, ExtractedOrderItem, RecommendedSKU, AttachmentMeta, mockEmails } from "@/data/mockData";
 
 interface SkuRef {
   sku_code: string;
@@ -19,6 +19,7 @@ export function useEmails() {
       const dbEmails = data.emails || [];
       const orderItems = data.order_items || [];
       const productsArr = data.products || [];
+      const emailAttachments = data.email_attachments || [];
 
       if (dbEmails.length > 0) {
         const productsMap: Record<string, any> = {};
@@ -70,6 +71,15 @@ export function useEmails() {
             ai_reply_draft: e.ai_reply_draft || "",
             status: (e.status || "New") as Status,
             attachments: e.attachments || [],
+            attachmentsMeta: (emailAttachments as any[])
+              .filter((a: any) => a.email_id === e.id)
+              .map((a: any) => ({
+                id: a.id,
+                email_id: a.email_id,
+                filename: a.filename,
+                mime_type: a.mime_type,
+                size_bytes: a.size_bytes || 0,
+              })),
           };
         });
 

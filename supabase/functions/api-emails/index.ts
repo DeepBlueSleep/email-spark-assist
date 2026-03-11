@@ -16,8 +16,11 @@ Deno.serve(async (req) => {
       const emailIds = emails.map((e: any) => e.id);
 
       let orderItems: any[] = [];
+      let emailAttachments: any[] = [];
       if (emailIds.length > 0) {
         orderItems = await sql`SELECT * FROM order_items WHERE email_id = ANY(${emailIds})`;
+        // Fetch attachment metadata (exclude base64 content for listing, include mime_type & size)
+        emailAttachments = await sql`SELECT id, email_id, filename, mime_type, size_bytes, created_at FROM email_attachments WHERE email_id = ANY(${emailIds})`;
       }
 
       // Get recommended SKU product details
@@ -35,7 +38,7 @@ Deno.serve(async (req) => {
         products = await sql`SELECT * FROM products WHERE sku_code = ANY(${uniqueSkuCodes})`;
       }
 
-      return new Response(JSON.stringify({ emails, order_items: orderItems, products }), {
+      return new Response(JSON.stringify({ emails, order_items: orderItems, products, email_attachments: emailAttachments }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
