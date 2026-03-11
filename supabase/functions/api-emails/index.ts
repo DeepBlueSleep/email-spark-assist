@@ -41,7 +41,14 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "DELETE") {
-      const body = await req.json();
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        // Try reading from URL params
+        const idsParam = url.searchParams.get("ids");
+        body = idsParam ? { ids: idsParam.split(",") } : {};
+      }
       const { ids } = body;
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return new Response(JSON.stringify({ error: "ids array required" }), {
