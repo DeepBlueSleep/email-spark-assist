@@ -19,6 +19,7 @@ export function useEmails() {
       const dbEmails = data.emails || [];
       const orderItems = data.order_items || [];
       const productsArr = data.products || [];
+      const emailAttachments = data.email_attachments || [];
 
       if (dbEmails.length > 0) {
         const productsMap: Record<string, any> = {};
