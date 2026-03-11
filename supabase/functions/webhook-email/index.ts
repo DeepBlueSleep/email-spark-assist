@@ -231,7 +231,8 @@ Deno.serve(async (req) => {
       console.log("[webhook-email] rawData keys:", Object.keys(rawData));
       
       // Keep unwrapping .payload until we find actual email data or there's no more .payload
-      while (rawData.payload && typeof rawData.payload === "object") {
+      let unwrapDepth = 0;
+      while (rawData.payload && typeof rawData.payload === "object" && unwrapDepth++ < 20) {
         // Collect attachments from current level before going deeper
         if (rawData.attachments && Array.isArray(rawData.attachments)) {
           inlineAttachments = rawData.attachments
