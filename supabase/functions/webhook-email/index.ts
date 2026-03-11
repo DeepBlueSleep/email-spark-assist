@@ -232,8 +232,25 @@ Deno.serve(async (req) => {
     const emails = Array.isArray(payload) ? payload : [payload];
     const results = [];
 
-    for (const rawData of emails) {
+    for (let rawData of emails) {
+      // Handle new wrapped format: { payload: {...}, attachments: [...] }
+      let inlineAttachments: string[] = [];
+      if (rawData.payload && (rawData.payload.from || rawData.payload.headers || rawData.payload.messageId || rawData.payload.subject)) {
+        // Extract attachment filenames from the attachments array
+        if (rawData.attachments && Array.isArray(rawData.attachments)) {
+          inlineAttachments = rawData.attachments
+            .map((a: any) => a.filename)
+            .filter(Boolean);
+        }
+        rawData = rawData.payload;
+      }
+
       const { parsed, raw } = parseEmail(rawData);
+
+      // Merge attachments from wrapper format
+      if (inlineAttachments.length > 0 && !parsed.attachments.length) {
+        parsed.attachments = inlineAttachments;
+      }
 
       if (rawData._formAttachments?.length && !parsed.attachments.length) {
         parsed.attachments = rawData._formAttachments;
