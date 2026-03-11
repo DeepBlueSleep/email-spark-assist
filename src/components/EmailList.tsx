@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Email, Sentiment, Intent, Status } from "@/data/mockData";
-import { Search, Filter, Mail, ChevronDown } from "lucide-react";
+import { Search, Filter, Mail, ChevronDown, Paperclip } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatLabel } from "@/lib/utils";
 
