@@ -117,6 +117,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
       {showAttachments && hasAttachments && (
         <AttachmentsPanel
           attachments={email.attachments!}
+          attachmentsMeta={email.attachmentsMeta}
           onClose={() => setShowAttachments(false)}
         />
       )}
