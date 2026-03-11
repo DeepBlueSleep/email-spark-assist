@@ -104,7 +104,7 @@ function parseFlatFormat(raw: any): ParsedEmail {
     if (match) {
       customer_name = customer_name || match[1].trim().replace(/^"|"$/g, "");
       customer_email = match[2].trim();
-    } else {
+    } else if (typeof fromField === "string") {
       customer_email = fromField.trim();
     }
   }
@@ -144,82 +144,73 @@ Deno.serve(async (req) => {
       }
     }
 
-    let payload: any;
     const contentType = req.headers.get("content-type") || "";
+    console.log("[webhook-email] Content-Type:", contentType);
 
-    //if (contentType.includes("multipart/form-data")) {
-    //  const formData = await req.formData();
-    //  const payloadField = formData.get("payload");
-    //  payload = payloadField ? JSON.parse(payloadField as string) : null;
-    //  const attachmentFiles: string[] = [];
-    //  for (const [key, value] of formData.entries()) {
-    //    if (key === "attachment" && value instanceof File) {
-    //      attachmentFiles.push(value.name);
-    //    }
-    //  }
-    //  if (payload && attachmentFiles.length > 0) {
-    //    const items = Array.isArray(payload) ? payload : [payload];
-    //    for (const item of items) {
-    //      item._formAttachments = attachmentFiles;
-    //    }
-    //  }
-    //} else {
-    //  payload = await req.json();
-    //}
+    // Read raw body first so we can log and re-parse
+    const rawBody = await req.text();
+    console.log("[webhook-email] Raw body length:", rawBody.length);
+    console.log("[webhook-email] Raw body preview:", rawBody.substring(0, 500));
+
+    let payload: any = null;
 
     if (contentType.includes("multipart/form-data")) {
-      let formData: FormData | null = null;
-
-      try {
-        formData = await req.formData();
-      } catch (_) {
-        formData = null;
-      }
-
-      if (formData) {
-        const payloadField = formData.get("payload");
-
-        if (payloadField) {
-          try {
-            payload = JSON.parse(payloadField as string);
-          } catch {
-            payload = payloadField;
-          }
-        }
-
-        const attachmentFiles: string[] = [];
-
-        for (const [key, value] of formData.entries()) {
-          if (value instanceof File) {
-            attachmentFiles.push(value.name);
-          }
-        }
-
-        if (payload && attachmentFiles.length > 0) {
-          const items = Array.isArray(payload) ? payload : [payload];
-          for (const item of items) {
-            item._formAttachments = attachmentFiles;
-          }
-        }
-      }
-
-      // Fallback if multipart parsing failed
-      if (!payload) {
-        const raw = await req.text();
-
-        const match = raw.match(/\{[\s\S]*\}/);
-
+      console.log("[webhook-email] Detected multipart/form-data");
+      
+      // For multipart, try to extract JSON from the body
+      // Look for JSON array or object patterns
+      const jsonPatterns = [
+        rawBody.match(/(\[[\s\S]*\])\s*$/),  // JSON array
+        rawBody.match(/(\{[\s\S]*\})\s*$/),   // JSON object
+      ];
+      
+      for (const match of jsonPatterns) {
         if (match) {
           try {
-            payload = JSON.parse(match[0]);
-          } catch (_) {}
+            payload = JSON.parse(match[1]);
+            console.log("[webhook-email] Extracted JSON from multipart body");
+            break;
+          } catch (_) {
+            // Try next pattern
+          }
+        }
+      }
+      
+      // If that didn't work, try finding JSON between multipart boundaries
+      if (!payload) {
+        const parts = rawBody.split(/------WebKitFormBoundary|--[\w-]+/);
+        for (const part of parts) {
+          const jsonMatch = part.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            try {
+              payload = JSON.parse(jsonMatch[0]);
+              console.log("[webhook-email] Extracted JSON from multipart part");
+              break;
+            } catch (_) {}
+          }
+          const objMatch = part.match(/\{[\s\S]*\}/);
+          if (objMatch) {
+            try {
+              payload = JSON.parse(objMatch[0]);
+              console.log("[webhook-email] Extracted JSON object from multipart part");
+              break;
+            } catch (_) {}
+          }
         }
       }
     } else {
-      payload = await req.json();
+      // Standard JSON body
+      try {
+        payload = JSON.parse(rawBody);
+        console.log("[webhook-email] Parsed as JSON, type:", Array.isArray(payload) ? "array" : typeof payload);
+      } catch (e) {
+        console.error("[webhook-email] JSON parse failed:", e.message);
+      }
     }
 
     if (!payload) {
+      console.error("[webhook-email] No payload could be extracted");
+      await sql`INSERT INTO webhook_logs (endpoint, payload, status, error_message) VALUES ('webhook-email', ${JSON.stringify({ rawPreview: rawBody.substring(0, 1000) })}::jsonb, 'error', 'No payload could be extracted')`;
       return new Response(JSON.stringify({ error: "No payload provided" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -230,22 +221,38 @@ Deno.serve(async (req) => {
     await sql`INSERT INTO webhook_logs (endpoint, payload) VALUES ('webhook-email', ${JSON.stringify(payload)}::jsonb)`;
 
     const emails = Array.isArray(payload) ? payload : [payload];
+    console.log("[webhook-email] Processing", emails.length, "email(s)");
     const results = [];
 
     for (let rawData of emails) {
       // Handle new wrapped format: { payload: {...}, attachments: [...] }
       let inlineAttachments: string[] = [];
-      if (rawData.payload && (rawData.payload.from || rawData.payload.headers || rawData.payload.messageId || rawData.payload.subject)) {
-        // Extract attachment filenames from the attachments array
-        if (rawData.attachments && Array.isArray(rawData.attachments)) {
-          inlineAttachments = rawData.attachments
-            .map((a: any) => a.filename)
-            .filter(Boolean);
+      
+      console.log("[webhook-email] rawData keys:", Object.keys(rawData));
+      
+      if (rawData.payload && typeof rawData.payload === "object") {
+        const p = rawData.payload;
+        if (p.from || p.headers || p.messageId || p.subject) {
+          console.log("[webhook-email] Detected wrapped format with payload.from/headers/messageId/subject");
+          // Extract attachment filenames from the attachments array
+          if (rawData.attachments && Array.isArray(rawData.attachments)) {
+            inlineAttachments = rawData.attachments
+              .map((a: any) => a.filename)
+              .filter(Boolean);
+            console.log("[webhook-email] Extracted", inlineAttachments.length, "attachment filenames:", inlineAttachments);
+          }
+          rawData = rawData.payload;
         }
-        rawData = rawData.payload;
       }
 
+      console.log("[webhook-email] Pre-parse rawData keys:", Object.keys(rawData));
+      console.log("[webhook-email] rawData.from:", JSON.stringify(rawData.from)?.substring(0, 200));
+      console.log("[webhook-email] rawData.subject:", rawData.subject);
+      console.log("[webhook-email] rawData.messageId:", rawData.messageId);
+
       const { parsed, raw } = parseEmail(rawData);
+
+      console.log("[webhook-email] Parsed result - name:", parsed.customer_name, "subject:", parsed.subject, "body length:", parsed.body.length);
 
       // Merge attachments from wrapper format
       if (inlineAttachments.length > 0 && !parsed.attachments.length) {
@@ -277,6 +284,7 @@ Deno.serve(async (req) => {
       `;
 
       const email = rows[0];
+      console.log("[webhook-email] Upserted email:", email.id, email.external_id);
 
       // Insert order items
       if (raw.extracted_order?.length > 0) {
@@ -291,12 +299,13 @@ Deno.serve(async (req) => {
       results.push({ id: email.id, external_id: email.external_id });
     }
 
+    console.log("[webhook-email] Done. Processed", results.length, "emails");
     return new Response(JSON.stringify({ success: true, emails: results }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error("[webhook-email] Error:", error);
     try {
       await sql`INSERT INTO webhook_logs (endpoint, payload, status, error_message) VALUES ('webhook-email', ${JSON.stringify({ error: String(error) })}::jsonb, 'error', ${String(error)})`;
     } catch (_) {}
