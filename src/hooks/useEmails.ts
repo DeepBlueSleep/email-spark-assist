@@ -70,6 +70,15 @@ export function useEmails() {
             ai_reply_draft: e.ai_reply_draft || "",
             status: (e.status || "New") as Status,
             attachments: e.attachments || [],
+            attachmentsMeta: (emailAttachments as any[])
+              .filter((a: any) => a.email_id === e.id)
+              .map((a: any) => ({
+                id: a.id,
+                email_id: a.email_id,
+                filename: a.filename,
+                mime_type: a.mime_type,
+                size_bytes: a.size_bytes || 0,
+              })),
           };
         });
 
