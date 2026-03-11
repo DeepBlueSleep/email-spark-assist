@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
         products = await sql`SELECT * FROM products WHERE sku_code = ANY(${uniqueSkuCodes})`;
       }
 
-      return new Response(JSON.stringify({ emails, order_items: orderItems, products }), {
+      return new Response(JSON.stringify({ emails, order_items: orderItems, products, email_attachments: emailAttachments }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
