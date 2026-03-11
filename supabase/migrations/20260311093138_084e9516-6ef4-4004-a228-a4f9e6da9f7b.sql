@@ -1,0 +1,1 @@
+DELETE FROM emails WHERE customer_name = 'Unknown Sender';
