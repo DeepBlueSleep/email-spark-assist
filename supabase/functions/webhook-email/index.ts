@@ -17,7 +17,10 @@ function parseN8nParsedFormat(raw: any): ParsedEmail | null {
   const customer_email = fromEntry?.address || "unknown@unknown.com";
   let body = raw.text || "";
   if (!body && raw.html) {
-    body = raw.html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    body = raw.html
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
   const attachments: string[] = [];
   if (raw.attachments && Array.isArray(raw.attachments)) {
@@ -26,7 +29,8 @@ function parseN8nParsedFormat(raw: any): ParsedEmail | null {
     }
   }
   return {
-    customer_name, customer_email,
+    customer_name,
+    customer_email,
     subject: raw.subject || "(No Subject)",
     body,
     external_id: raw.messageId || crypto.randomUUID(),
@@ -89,7 +93,10 @@ function parseFlatFormat(raw: any): ParsedEmail {
   let customer_email = raw.email || null;
   let body = raw.body || raw.textPlain || raw.snippet || "";
   if (body.startsWith("<") || body.includes("<div") || body.includes("<p")) {
-    body = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    body = body
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
   const fromField = raw.from || raw.From || "";
   if (!customer_email && fromField) {
@@ -106,7 +113,8 @@ function parseFlatFormat(raw: any): ParsedEmail {
     customer_email: customer_email || "unknown@unknown.com",
     subject: raw.subject || "(No Subject)",
     body,
-    external_id: raw.external_id || raw.message_id || raw.messageId || raw["message-id"] || raw.id || crypto.randomUUID(),
+    external_id:
+      raw.external_id || raw.message_id || raw.messageId || raw["message-id"] || raw.id || crypto.randomUUID(),
     timestamp: raw.timestamp || raw.date || new Date().toISOString(),
     attachments: raw.attachments || [],
   };
@@ -130,7 +138,8 @@ Deno.serve(async (req) => {
       const providedSecret = req.headers.get("x-webhook-secret");
       if (providedSecret !== webhookSecret) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
@@ -138,16 +147,62 @@ Deno.serve(async (req) => {
     let payload: any;
     const contentType = req.headers.get("content-type") || "";
 
+    //if (contentType.includes("multipart/form-data")) {
+    //  const formData = await req.formData();
+    //  const payloadField = formData.get("payload");
+    //  payload = payloadField ? JSON.parse(payloadField as string) : null;
+    //  const attachmentFiles: string[] = [];
+    //  for (const [key, value] of formData.entries()) {
+    //    if (key === "attachment" && value instanceof File) {
+    //      attachmentFiles.push(value.name);
+    //    }
+    //  }
+    //  if (payload && attachmentFiles.length > 0) {
+    //    const items = Array.isArray(payload) ? payload : [payload];
+    //    for (const item of items) {
+    //      item._formAttachments = attachmentFiles;
+    //    }
+    //  }
+    //} else {
+    //  payload = await req.json();
+    //}
+
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
+
+      // Try to read payload field normally
       const payloadField = formData.get("payload");
-      payload = payloadField ? JSON.parse(payloadField as string) : null;
+
+      if (payloadField) {
+        try {
+          payload = JSON.parse(payloadField as string);
+        } catch {
+          payload = payloadField;
+        }
+      }
+
+      // If payload field not provided, try reading first JSON-like field
+      if (!payload) {
+        for (const [key, value] of formData.entries()) {
+          if (typeof value === "string" && value.trim().startsWith("{")) {
+            try {
+              payload = JSON.parse(value);
+              break;
+            } catch {
+              payload = value;
+            }
+          }
+        }
+      }
+
       const attachmentFiles: string[] = [];
+
       for (const [key, value] of formData.entries()) {
-        if (key === "attachment" && value instanceof File) {
+        if (value instanceof File) {
           attachmentFiles.push(value.name);
         }
       }
+
       if (payload && attachmentFiles.length > 0) {
         const items = Array.isArray(payload) ? payload : [payload];
         for (const item of items) {
@@ -160,7 +215,8 @@ Deno.serve(async (req) => {
 
     if (!payload) {
       return new Response(JSON.stringify({ error: "No payload provided" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -213,7 +269,8 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ success: true, emails: results }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Webhook error:", error);
@@ -221,7 +278,8 @@ Deno.serve(async (req) => {
       await sql`INSERT INTO webhook_logs (endpoint, payload, status, error_message) VALUES ('webhook-email', ${JSON.stringify({ error: String(error) })}::jsonb, 'error', ${String(error)})`;
     } catch (_) {}
     return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
