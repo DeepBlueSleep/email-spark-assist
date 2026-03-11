@@ -5,6 +5,7 @@ import { OrderDataTable } from "./OrderDataTable";
 import { DraftOrder } from "./DraftOrder";
 import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
+import { AttachmentsPanel } from "./AttachmentsPanel";
 import { User, Clock, Paperclip, FileText } from "lucide-react";
 
 interface EmailDetailProps {
