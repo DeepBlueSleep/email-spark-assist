@@ -225,24 +225,37 @@ Deno.serve(async (req) => {
     const results = [];
 
     for (let rawData of emails) {
-      // Handle new wrapped format: { payload: {...}, attachments: [...] }
+      // Recursively unwrap nested payload objects (n8n sometimes sends {payload: {payload: {...}, attachments: [...]}})
       let inlineAttachments: string[] = [];
       
       console.log("[webhook-email] rawData keys:", Object.keys(rawData));
       
-      if (rawData.payload && typeof rawData.payload === "object") {
+      // Keep unwrapping .payload until we find actual email data or there's no more .payload
+      let maxDepth = 5;
+      while (rawData.payload && typeof rawData.payload === "object" && maxDepth-- > 0) {
         const p = rawData.payload;
-        if (p.from || p.headers || p.messageId || p.subject) {
-          console.log("[webhook-email] Detected wrapped format with payload.from/headers/messageId/subject");
-          // Extract attachment filenames from the attachments array
+        // Check if this level has email-like fields
+        if (p.from || p.headers || p.messageId || p.subject || p.text || p.html) {
+          console.log("[webhook-email] Found email data at payload level, unwrapping");
+          // Collect attachments from current level before unwrapping
           if (rawData.attachments && Array.isArray(rawData.attachments)) {
             inlineAttachments = rawData.attachments
               .map((a: any) => a.filename)
               .filter(Boolean);
             console.log("[webhook-email] Extracted", inlineAttachments.length, "attachment filenames:", inlineAttachments);
           }
-          rawData = rawData.payload;
+          rawData = p;
+          break;
         }
+        // No email fields at this level, but there's a nested payload - go deeper
+        console.log("[webhook-email] No email fields at this level, unwrapping payload (keys:", Object.keys(p), ")");
+        // Collect attachments from current level
+        if (rawData.attachments && Array.isArray(rawData.attachments)) {
+          inlineAttachments = rawData.attachments
+            .map((a: any) => a.filename)
+            .filter(Boolean);
+        }
+        rawData = p;
       }
 
       console.log("[webhook-email] Pre-parse rawData keys:", Object.keys(rawData));
