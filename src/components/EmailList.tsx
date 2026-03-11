@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Email, Sentiment, Intent, Status } from "@/data/mockData";
-import { Search, Filter, Mail, ChevronDown } from "lucide-react";
+import { Search, Filter, Mail, ChevronDown, Paperclip } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatLabel } from "@/lib/utils";
 
@@ -132,7 +132,12 @@ export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
                   <span className="font-medium text-sm truncate">{email.customer_name}</span>
                   <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(email.timestamp)}</span>
                 </div>
-                <p className="text-sm font-medium text-foreground/80 truncate mt-0.5">{email.subject}</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-sm font-medium text-foreground/80 truncate mt-0.5">{email.subject}</p>
+                  {email.attachments && email.attachments.length > 0 && (
+                    <Paperclip className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{email.body.slice(0, 120)}...</p>
                 <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                   <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", intentColors[email.intent] || "bg-primary/10 text-primary")}>{formatLabel(email.intent)}</span>
