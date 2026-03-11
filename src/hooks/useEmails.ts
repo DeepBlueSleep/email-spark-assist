@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { invokeFunction } from "@/lib/api";
-import { Email, Status, Sentiment, Intent, ExtractedOrderItem, RecommendedSKU, mockEmails } from "@/data/mockData";
+import { Email, Status, Sentiment, Intent, ExtractedOrderItem, RecommendedSKU, AttachmentMeta, mockEmails } from "@/data/mockData";
 
 interface SkuRef {
   sku_code: string;
