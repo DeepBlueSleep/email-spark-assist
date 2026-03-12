@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 
 const Index = () => {
   const { emails, isLoading, usingLiveData, updateStatus } = useEmails();
+  const statuses = useStatuses();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const effectiveSelectedId = selectedId || emails[0]?.id || null;
