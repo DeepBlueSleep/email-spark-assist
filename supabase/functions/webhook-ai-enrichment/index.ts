@@ -87,6 +87,7 @@ Deno.serve(async (req) => {
       }
 
       // Apply updates using a single parameterized query
+      const skuCodesVal = vals.recommended_sku_codes ?? null;
       await sql`
         UPDATE emails SET
           sentiment = COALESCE(${vals.sentiment ?? null}, sentiment),
@@ -95,7 +96,7 @@ Deno.serve(async (req) => {
           intent_confidence = COALESCE(${vals.intent_confidence ?? null}, intent_confidence),
           status = ${vals.status},
           ai_reply_draft = COALESCE(${vals.ai_reply_draft ?? null}, ai_reply_draft),
-          recommended_sku_codes = COALESCE(${vals.recommended_sku_codes ? sql`${vals.recommended_sku_codes}::jsonb` : null}, recommended_sku_codes),
+          recommended_sku_codes = COALESCE(${skuCodesVal}::jsonb, recommended_sku_codes),
           updated_at = now()
         WHERE id = ${dbEmailId}
       `;
