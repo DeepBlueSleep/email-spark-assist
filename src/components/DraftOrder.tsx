@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { RecommendedSKU } from "@/data/mockData";
-import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X } from "lucide-react";
+import { RecommendedSKU, ExtractedOrderItem } from "@/data/mockData";
+import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { invokeFunction } from "@/lib/api";
 
@@ -15,6 +15,8 @@ interface DraftOrderItem {
   stock_level: number;
   match_reason: string;
   quantity: number;
+  requested_quantity: number;
+  stock_insufficient: boolean;
 }
 
 interface ProductResult {
