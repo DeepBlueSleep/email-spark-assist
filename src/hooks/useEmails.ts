@@ -23,9 +23,11 @@ export function useEmails() {
       const customersArr = data.customers || [];
 
       if (dbEmails.length > 0) {
+        const normalizeSkuCode = (sku: unknown) => String(sku ?? "").trim().toUpperCase();
         const productsMap: Record<string, any> = {};
         for (const p of productsArr) {
-          productsMap[p.sku_code] = p;
+          const normalized = normalizeSkuCode(p.sku_code);
+          if (normalized) productsMap[normalized] = p;
         }
 
         const customersMap: Record<string, Customer> = {};
