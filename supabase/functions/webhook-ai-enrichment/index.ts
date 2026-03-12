@@ -47,7 +47,6 @@ Deno.serve(async (req) => {
       const dbEmailId = emailRows[0].id;
 
       // Build update fields
-      const updates: string[] = [];
       const vals: any = {};
 
       if (payload.sentiment !== undefined) vals.sentiment = payload.sentiment;
