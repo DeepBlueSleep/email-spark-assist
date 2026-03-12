@@ -33,6 +33,7 @@ interface ProductResult {
 interface DraftOrderProps {
   recommendedSkus: RecommendedSKU[];
   extractedOrderItems?: ExtractedOrderItem[];
+  onTotalChange?: (total: number) => void;
 }
 
 function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[] = []): DraftOrderItem[] {
@@ -62,10 +63,16 @@ function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[
   });
 }
 
-export function DraftOrder({ recommendedSkus, extractedOrderItems = [] }: DraftOrderProps) {
+export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalChange }: DraftOrderProps) {
   const [items, setItems] = useState<DraftOrderItem[]>(() =>
     buildDraftItems(recommendedSkus, extractedOrderItems)
   );
+
+  // Report total to parent whenever items change
+  useEffect(() => {
+    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    onTotalChange?.(total);
+  }, [items, onTotalChange]);
   const [removed, setRemoved] = useState<DraftOrderItem[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

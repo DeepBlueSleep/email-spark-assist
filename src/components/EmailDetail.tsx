@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Email, Status, ExtractedOrderItem } from "@/data/mockData";
 import { AIAnalysisPanel } from "./AIAnalysisPanel";
 import { OrderDataTable } from "./OrderDataTable";
@@ -18,6 +18,8 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const [replyDraft, setReplyDraft] = useState(email.ai_reply_draft);
   const [selectedTone, setSelectedTone] = useState("Professional");
   const [showAttachments, setShowAttachments] = useState(false);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const handleTotalChange = useCallback((total: number) => setOrderTotal(total), []);
 
   // Reset local state when email changes
   const [prevEmailId, setPrevEmailId] = useState(email.id);
@@ -99,7 +101,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
 
         {/* Draft Order — from recommended SKUs */}
         {hasDraftOrder && (
-          <DraftOrder recommendedSkus={email.recommended_skus} extractedOrderItems={email.extracted_order} />
+          <DraftOrder recommendedSkus={email.recommended_skus} extractedOrderItems={email.extracted_order} onTotalChange={handleTotalChange} />
         )}
 
         {/* AI Reply — only when a draft exists */}
@@ -109,7 +111,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
 
         {/* Actions — only when there's enrichment data to act on */}
         {hasAnyEnrichment && (
-          <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} />
+          <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} orderTotal={orderTotal} />
         )}
       </div>
 
