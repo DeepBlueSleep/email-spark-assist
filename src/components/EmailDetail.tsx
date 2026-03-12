@@ -101,7 +101,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
 
         {/* Draft Order — from recommended SKUs */}
         {hasDraftOrder && (
-          <DraftOrder recommendedSkus={email.recommended_skus} extractedOrderItems={email.extracted_order} />
+          <DraftOrder recommendedSkus={email.recommended_skus} extractedOrderItems={email.extracted_order} onTotalChange={handleTotalChange} />
         )}
 
         {/* AI Reply — only when a draft exists */}
