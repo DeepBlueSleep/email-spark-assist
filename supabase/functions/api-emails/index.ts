@@ -102,12 +102,16 @@ Deno.serve(async (req) => {
         });
       }
 
-      const setClauses: string[] = [];
-      if (fields.status !== undefined) setClauses.push(`status = '${fields.status.replace(/'/g, "''")}'`);
-      if (fields.ai_reply_draft !== undefined) setClauses.push(`ai_reply_draft = '${fields.ai_reply_draft.replace(/'/g, "''")}'`);
-      setClauses.push("updated_at = now()");
+      const status = fields.status ?? null;
+      const aiReplyDraft = fields.ai_reply_draft ?? null;
 
-      await sql.unsafe(`UPDATE emails SET ${setClauses.join(", ")} WHERE id = '${id}'`);
+      await sql`
+        UPDATE emails SET
+          status = COALESCE(${status}, status),
+          ai_reply_draft = COALESCE(${aiReplyDraft}, ai_reply_draft),
+          updated_at = now()
+        WHERE id = ${id}
+      `;
 
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
