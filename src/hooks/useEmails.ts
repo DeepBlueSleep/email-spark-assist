@@ -20,11 +20,17 @@ export function useEmails() {
       const orderItems = data.order_items || [];
       const productsArr = data.products || [];
       const emailAttachments = data.email_attachments || [];
+      const customersArr = data.customers || [];
 
       if (dbEmails.length > 0) {
         const productsMap: Record<string, any> = {};
         for (const p of productsArr) {
           productsMap[p.sku_code] = p;
+        }
+
+        const customersMap: Record<string, Customer> = {};
+        for (const c of customersArr) {
+          customersMap[c.id] = c;
         }
 
         const mapped: Email[] = dbEmails.map((e: any) => {
