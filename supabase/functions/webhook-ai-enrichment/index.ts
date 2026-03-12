@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
         if (vals.sentiment_confidence !== undefined) setClauses.push(`sentiment_confidence = ${vals.sentiment_confidence}`);
         if (vals.intent !== undefined) setClauses.push(`intent = '${vals.intent}'`);
         if (vals.intent_confidence !== undefined) setClauses.push(`intent_confidence = ${vals.intent_confidence}`);
-        if (vals.status !== undefined) setClauses.push(`status = '${vals.status}'`);
+        setClauses.push(`status = '${vals.status}'`);
         if (vals.ai_reply_draft !== undefined) setClauses.push(`ai_reply_draft = '${vals.ai_reply_draft.replace(/'/g, "''")}'`);
         if (vals.recommended_sku_codes !== undefined) setClauses.push(`recommended_sku_codes = '${vals.recommended_sku_codes}'::jsonb`);
 
