@@ -86,6 +86,8 @@ export function useEmails() {
                 mime_type: a.mime_type,
                 size_bytes: a.size_bytes || 0,
               })),
+            customer_id: e.customer_id || undefined,
+            customer: e.customer_id ? customersMap[e.customer_id] : undefined,
           };
         });
 
