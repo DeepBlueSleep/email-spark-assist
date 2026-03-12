@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Email, Status } from "@/data/mockData";
-import { Check, HelpCircle, XCircle, Send, Loader2 } from "lucide-react";
+import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck } from "lucide-react";
 import { invokeFunction } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -9,17 +9,73 @@ interface ActionButtonsProps {
   replyDraft: string;
   selectedTone: string;
   onStatusChange: (id: string, status: Status) => void;
+  orderTotal?: number;
 }
 
-export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange }: ActionButtonsProps) {
+interface CreditCheckResult {
+  status: "ok" | "warning" | "exceeded";
+  credit_limit: number;
+  credit_used: number;
+  credit_remaining: number;
+  order_total: number;
+  message: string;
+}
+
+export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange, orderTotal = 0 }: ActionButtonsProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showEscalate, setShowEscalate] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
   const [escalateReason, setEscalateReason] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
+  const [checkingCredit, setCheckingCredit] = useState(false);
   const [clarificationMsg, setClarificationMsg] = useState(
     `Dear ${email.customer_name},\n\nThank you for your email. We need some additional information to process your request:\n\n- [Please specify details]\n\nCould you please provide these details at your earliest convenience?\n\nBest regards,\nOrder Processing Team`
   );
+
+  // Simulate credit check when confirm dialog opens
+  useEffect(() => {
+    if (!showConfirm) {
+      setCreditCheck(null);
+      return;
+    }
+    async function runCreditCheck() {
+      setCheckingCredit(true);
+      try {
+        const data = await invokeFunction("api-customers", { params: { email: email.email } });
+        const customer = data.customers?.[0];
+
+        // Simulate a short delay like an API would have
+        await new Promise((r) => setTimeout(r, 600));
+
+        if (customer) {
+          const limit = customer.credit_limit || 0;
+          const used = customer.credit_used || 0;
+          const remaining = limit - used;
+          const newUsed = used + orderTotal;
+
+          let status: CreditCheckResult["status"] = "ok";
+          let message = `Credit OK. Remaining after this order: $${(remaining - orderTotal).toFixed(2)}`;
+
+          if (limit > 0 && newUsed > limit) {
+            status = "exceeded";
+            message = `Credit limit exceeded! This order ($${orderTotal.toFixed(2)}) would bring usage to $${newUsed.toFixed(2)} against a $${limit.toFixed(2)} limit. Overage: $${(newUsed - limit).toFixed(2)}`;
+          } else if (limit > 0 && remaining - orderTotal < limit * 0.2) {
+            status = "warning";
+            message = `Credit warning: After this order, only $${(remaining - orderTotal).toFixed(2)} (${Math.round(((remaining - orderTotal) / limit) * 100)}%) of credit remains.`;
+          }
+
+          setCreditCheck({ status, credit_limit: limit, credit_used: used, credit_remaining: remaining, order_total: orderTotal, message });
+        } else {
+          setCreditCheck({ status: "warning", credit_limit: 0, credit_used: 0, credit_remaining: 0, order_total: orderTotal, message: "No customer profile found — credit terms not verified." });
+        }
+      } catch {
+        setCreditCheck({ status: "warning", credit_limit: 0, credit_used: 0, credit_remaining: 0, order_total: orderTotal, message: "Could not verify credit — proceeding at your discretion." });
+      }
+      setCheckingCredit(false);
+    }
+    runCreditCheck();
+  }, [showConfirm, email.email, orderTotal]);
 
   const handleApproveAndSend = async () => {
     setIsSending(true);
