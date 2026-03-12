@@ -54,7 +54,8 @@ Deno.serve(async (req) => {
       if (payload.sentiment_confidence !== undefined) vals.sentiment_confidence = payload.sentiment_confidence;
       if (payload.intent !== undefined) vals.intent = payload.intent;
       if (payload.intent_confidence !== undefined) vals.intent_confidence = payload.intent_confidence;
-      if (payload.status !== undefined) vals.status = payload.status;
+      // Status is NOT accepted from external payload — auto-set to "AI Processed"
+      vals.status = "AI Processed";
 
       // AI reply drafts
       let drafts: { tone: string; draft: string }[] = [];
