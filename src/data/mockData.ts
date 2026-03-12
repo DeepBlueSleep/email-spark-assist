@@ -40,6 +40,9 @@ export interface Customer {
   phone?: string;
   company?: string;
   notes?: string;
+  credit_limit?: number;
+  credit_terms?: string;
+  credit_used?: number;
 }
 
 export interface Email {

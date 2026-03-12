@@ -17,20 +17,23 @@ Deno.serve(async (req) => {
 
     if (req.method === "POST") {
       const body = await req.json();
-      const { name, email, phone, company, notes } = body;
+      const { name, email, phone, company, notes, credit_limit, credit_terms, credit_used } = body;
       if (!email) {
         return new Response(JSON.stringify({ error: "email is required" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const rows = await sql`
-        INSERT INTO customers (name, email, phone, company, notes)
-        VALUES (${name || "Unknown"}, ${email}, ${phone || null}, ${company || null}, ${notes || null})
+        INSERT INTO customers (name, email, phone, company, notes, credit_limit, credit_terms, credit_used)
+        VALUES (${name || "Unknown"}, ${email}, ${phone || null}, ${company || null}, ${notes || null}, ${credit_limit ?? 0}, ${credit_terms || "Net 30"}, ${credit_used ?? 0})
         ON CONFLICT (email) DO UPDATE SET
           name = COALESCE(NULLIF(EXCLUDED.name, 'Unknown'), customers.name),
           phone = COALESCE(EXCLUDED.phone, customers.phone),
           company = COALESCE(EXCLUDED.company, customers.company),
           notes = COALESCE(EXCLUDED.notes, customers.notes),
+          credit_limit = COALESCE(EXCLUDED.credit_limit, customers.credit_limit),
+          credit_terms = COALESCE(EXCLUDED.credit_terms, customers.credit_terms),
+          credit_used = COALESCE(EXCLUDED.credit_used, customers.credit_used),
           updated_at = now()
         RETURNING *
       `;
