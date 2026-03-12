@@ -46,6 +46,39 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_attachments: {
         Row: {
           content_base64: string
@@ -90,6 +123,7 @@ export type Database = {
           attachments: string[] | null
           body: string
           created_at: string
+          customer_id: string | null
           customer_name: string
           email: string
           external_id: string | null
@@ -109,6 +143,7 @@ export type Database = {
           attachments?: string[] | null
           body?: string
           created_at?: string
+          customer_id?: string | null
           customer_name?: string
           email?: string
           external_id?: string | null
@@ -128,6 +163,7 @@ export type Database = {
           attachments?: string[] | null
           body?: string
           created_at?: string
+          customer_id?: string | null
           customer_name?: string
           email?: string
           external_id?: string | null
@@ -142,7 +178,15 @@ export type Database = {
           timestamp?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "emails_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       intents: {
         Row: {
