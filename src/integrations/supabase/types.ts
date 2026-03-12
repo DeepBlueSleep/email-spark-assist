@@ -50,6 +50,9 @@ export type Database = {
         Row: {
           company: string | null
           created_at: string
+          credit_limit: number | null
+          credit_terms: string | null
+          credit_used: number | null
           email: string
           id: string
           name: string
@@ -60,6 +63,9 @@ export type Database = {
         Insert: {
           company?: string | null
           created_at?: string
+          credit_limit?: number | null
+          credit_terms?: string | null
+          credit_used?: number | null
           email: string
           id?: string
           name?: string
@@ -70,6 +76,9 @@ export type Database = {
         Update: {
           company?: string | null
           created_at?: string
+          credit_limit?: number | null
+          credit_terms?: string | null
+          credit_used?: number | null
           email?: string
           id?: string
           name?: string
