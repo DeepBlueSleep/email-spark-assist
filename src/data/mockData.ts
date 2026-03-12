@@ -33,6 +33,15 @@ export interface AttachmentMeta {
   size_bytes: number;
 }
 
+export interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  notes?: string;
+}
+
 export interface Email {
   id: string;
   customer_name: string;
@@ -50,6 +59,8 @@ export interface Email {
   status: Status;
   attachments?: string[];
   attachmentsMeta?: AttachmentMeta[];
+  customer_id?: string;
+  customer?: Customer;
 }
 
 export const mockEmails: Email[] = [
