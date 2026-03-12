@@ -18,6 +18,8 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const [replyDraft, setReplyDraft] = useState(email.ai_reply_draft);
   const [selectedTone, setSelectedTone] = useState("Professional");
   const [showAttachments, setShowAttachments] = useState(false);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const handleTotalChange = useCallback((total: number) => setOrderTotal(total), []);
 
   // Reset local state when email changes
   const [prevEmailId, setPrevEmailId] = useState(email.id);
