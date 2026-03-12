@@ -286,6 +286,31 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [] }: DraftO
         </div>
       )}
 
+      {items.length > 0 && (
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="w-4 h-4 text-primary" />
+            <span className="text-xs font-semibold">Quotation Summary</span>
+          </div>
+          <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+            {items.map((item) => (
+              <div key={item.id} className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  {item.name} <span className="font-mono">({item.sku_code})</span> × {item.quantity}
+                </span>
+                <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
+              </div>
+            ))}
+            <div className="border-t border-border pt-2 mt-2 flex items-center justify-between">
+              <span className="text-sm font-semibold">Total</span>
+              <span className="text-sm font-bold text-primary">
+                ${items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {removed.length > 0 && (
         <div className="border-t border-border pt-4">
           <div className="flex items-center gap-2 mb-3">
