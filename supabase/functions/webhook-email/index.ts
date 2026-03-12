@@ -267,15 +267,26 @@ Deno.serve(async (req) => {
         parsed.attachments = rawData._formAttachments;
       }
 
+      // Upsert customer
+      const customerRows = await sql`
+        INSERT INTO customers (name, email)
+        VALUES (${parsed.customer_name}, ${parsed.customer_email})
+        ON CONFLICT (email) DO UPDATE SET
+          name = COALESCE(NULLIF(EXCLUDED.name, 'Unknown'), customers.name),
+          updated_at = now()
+        RETURNING id
+      `;
+      const customerId = customerRows[0]?.id || null;
+
       // Upsert email
       const rows = await sql`
-        INSERT INTO emails (external_id, customer_name, email, subject, body, timestamp, sentiment, sentiment_confidence, intent, intent_confidence, ai_reply_draft, status, attachments)
+        INSERT INTO emails (external_id, customer_name, email, subject, body, timestamp, sentiment, sentiment_confidence, intent, intent_confidence, ai_reply_draft, status, attachments, customer_id)
         VALUES (
           ${parsed.external_id}, ${parsed.customer_name}, ${parsed.customer_email},
           ${parsed.subject}, ${parsed.body}, ${parsed.timestamp},
           ${raw.sentiment || "Neutral"}, ${raw.sentiment_confidence || 0},
           ${raw.intent || "General Question"}, ${raw.intent_confidence || 0},
-          ${raw.ai_reply_draft || ""}, ${raw.status || "New"}, ${parsed.attachments}
+          ${raw.ai_reply_draft || ""}, ${raw.status || "New"}, ${parsed.attachments}, ${customerId}
         )
         ON CONFLICT (external_id) DO UPDATE SET
           customer_name = EXCLUDED.customer_name, email = EXCLUDED.email,
@@ -283,7 +294,7 @@ Deno.serve(async (req) => {
           sentiment = EXCLUDED.sentiment, sentiment_confidence = EXCLUDED.sentiment_confidence,
           intent = EXCLUDED.intent, intent_confidence = EXCLUDED.intent_confidence,
           ai_reply_draft = EXCLUDED.ai_reply_draft, status = EXCLUDED.status,
-          attachments = EXCLUDED.attachments, updated_at = now()
+          attachments = EXCLUDED.attachments, customer_id = EXCLUDED.customer_id, updated_at = now()
         RETURNING id, external_id
       `;
 
