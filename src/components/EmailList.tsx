@@ -33,9 +33,10 @@ interface EmailListProps {
   emails: Email[];
   selectedId: string | null;
   onSelect: (email: Email) => void;
+  statuses: StatusDef[];
 }
 
-export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
+export function EmailList({ emails, selectedId, onSelect, statuses }: EmailListProps) {
   const [search, setSearch] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<Sentiment | "all">("all");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
