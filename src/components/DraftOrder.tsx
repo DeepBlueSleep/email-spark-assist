@@ -126,6 +126,8 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [] }: DraftO
       stock_level: product.stock_level || 0,
       match_reason: "Manually added",
       quantity: 1,
+      requested_quantity: 1,
+      stock_insufficient: false,
     };
     setItems((prev) => [...prev, newItem]);
     setShowSearch(false);
