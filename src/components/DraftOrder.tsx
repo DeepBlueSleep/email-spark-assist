@@ -33,6 +33,7 @@ interface ProductResult {
 interface DraftOrderProps {
   recommendedSkus: RecommendedSKU[];
   extractedOrderItems?: ExtractedOrderItem[];
+  onTotalChange?: (total: number) => void;
 }
 
 function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[] = []): DraftOrderItem[] {
