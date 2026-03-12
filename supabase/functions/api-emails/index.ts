@@ -56,7 +56,14 @@ Deno.serve(async (req) => {
         products = await sql`SELECT * FROM products WHERE sku_code = ANY(${uniqueSkuCodes})`;
       }
 
-      return new Response(JSON.stringify({ emails, order_items: orderItems, products, email_attachments: emailAttachments }), {
+      // Fetch customers for mapping
+      const customerIds = [...new Set(emails.map((e: any) => e.customer_id).filter(Boolean))];
+      let customers: any[] = [];
+      if (customerIds.length > 0) {
+        customers = await sql`SELECT * FROM customers WHERE id = ANY(${customerIds})`;
+      }
+
+      return new Response(JSON.stringify({ emails, order_items: orderItems, products, email_attachments: emailAttachments, customers }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
