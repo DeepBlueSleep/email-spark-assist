@@ -9,8 +9,37 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method === "GET") {
-      const customers = await sql`SELECT * FROM customers ORDER BY name ASC`;
+      const url = new URL(req.url);
+      const id = url.searchParams.get("id");
+      const email = url.searchParams.get("email");
+      const search = url.searchParams.get("search");
+
+      let customers;
+      if (id) {
+        customers = await sql`SELECT * FROM customers WHERE id = ${id}`;
+      } else if (email) {
+        customers = await sql`SELECT * FROM customers WHERE email = ${email}`;
+      } else if (search) {
+        const pattern = `%${search}%`;
+        customers = await sql`SELECT * FROM customers WHERE name ILIKE ${pattern} OR email ILIKE ${pattern} OR company ILIKE ${pattern} ORDER BY name ASC`;
+      } else {
+        customers = await sql`SELECT * FROM customers ORDER BY name ASC`;
+      }
       return new Response(JSON.stringify({ customers }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (req.method === "DELETE") {
+      const url = new URL(req.url);
+      const id = url.searchParams.get("id");
+      if (!id) {
+        return new Response(JSON.stringify({ error: "id required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      await sql`DELETE FROM customers WHERE id = ${id}`;
+      return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
