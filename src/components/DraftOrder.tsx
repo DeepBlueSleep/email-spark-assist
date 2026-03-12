@@ -32,11 +32,20 @@ interface ProductResult {
 
 interface DraftOrderProps {
   recommendedSkus: RecommendedSKU[];
+  extractedOrderItems?: ExtractedOrderItem[];
 }
 
-export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
-  const [items, setItems] = useState<DraftOrderItem[]>(() =>
-    recommendedSkus.map((sku) => ({
+function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[] = []): DraftOrderItem[] {
+  return skus.map((sku) => {
+    // Find matching extracted order item by SKU code (item_code)
+    const matchedOrder = orderItems.find(
+      (oi) => oi.item_code && oi.item_code.toUpperCase() === sku.sku_code.toUpperCase()
+    );
+    const requestedQty = matchedOrder?.quantity || 1;
+    const stockInsufficient = requestedQty > sku.stock_level;
+    const finalQty = stockInsufficient ? sku.stock_level : requestedQty;
+
+    return {
       id: `do-${sku.sku_code}`,
       sku_code: sku.sku_code,
       name: sku.name,
@@ -46,8 +55,16 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
       price: sku.price,
       stock_level: sku.stock_level,
       match_reason: sku.match_reason,
-      quantity: 1,
-    }))
+      quantity: finalQty,
+      requested_quantity: requestedQty,
+      stock_insufficient: stockInsufficient,
+    };
+  });
+}
+
+export function DraftOrder({ recommendedSkus, extractedOrderItems = [] }: DraftOrderProps) {
+  const [items, setItems] = useState<DraftOrderItem[]>(() =>
+    buildDraftItems(recommendedSkus, extractedOrderItems)
   );
   const [removed, setRemoved] = useState<DraftOrderItem[]>([]);
   const [showSearch, setShowSearch] = useState(false);
