@@ -267,7 +267,16 @@ Deno.serve(async (req) => {
         parsed.attachments = rawData._formAttachments;
       }
 
-      // Upsert email (customer identified by name + email only, no customer_id)
+      // Upsert customer by email address (no customer_id needed)
+      await sql`
+        INSERT INTO customers (name, email)
+        VALUES (${parsed.customer_name}, ${parsed.customer_email})
+        ON CONFLICT (email) DO UPDATE SET
+          name = COALESCE(NULLIF(EXCLUDED.name, 'Unknown Sender'), NULLIF(EXCLUDED.name, 'Unknown'), customers.name),
+          updated_at = now()
+      `;
+
+      // Upsert email (linked to customer via email address, not customer_id)
       const rows = await sql`
         INSERT INTO emails (external_id, customer_name, email, subject, body, timestamp, sentiment, sentiment_confidence, intent, intent_confidence, ai_reply_draft, status, attachments)
         VALUES (
