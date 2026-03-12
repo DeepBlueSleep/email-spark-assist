@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useEmails } from "@/hooks/useEmails";
+import { useStatuses } from "@/hooks/useStatuses";
 import { EmailList } from "@/components/EmailList";
 import { EmailDetail } from "@/components/EmailDetail";
 import { Bot, Inbox, Wifi, WifiOff, Package } from "lucide-react";
