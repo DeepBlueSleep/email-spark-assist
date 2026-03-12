@@ -76,20 +76,7 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [] }: DraftO
   const [prevSkus, setPrevSkus] = useState(recommendedSkus);
   if (recommendedSkus !== prevSkus) {
     setPrevSkus(recommendedSkus);
-    setItems(
-      recommendedSkus.map((sku) => ({
-        id: `do-${sku.sku_code}`,
-        sku_code: sku.sku_code,
-        name: sku.name,
-        category: sku.category,
-        color: sku.color,
-        size: sku.size,
-        price: sku.price,
-        stock_level: sku.stock_level,
-        match_reason: sku.match_reason,
-        quantity: 1,
-      }))
-    );
+    setItems(buildDraftItems(recommendedSkus, extractedOrderItems));
     setRemoved([]);
     setShowSearch(false);
     setSearchQuery("");
