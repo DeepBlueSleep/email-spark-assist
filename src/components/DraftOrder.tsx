@@ -266,6 +266,12 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [] }: DraftO
                   </td>
                   <td className="py-2 px-2">
                     <input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)} className="w-14 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    {item.stock_insufficient && (
+                      <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600">
+                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                        <span>Requested {item.requested_quantity}, only {item.stock_level} in stock</span>
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 px-2 text-[10px] text-primary/70 italic max-w-[180px]">{item.match_reason}</td>
                   <td className="py-2 px-2">
