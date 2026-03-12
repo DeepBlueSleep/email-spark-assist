@@ -50,8 +50,6 @@ export function AIReplyEditor({ emailId, draft, onChange }: AIReplyEditorProps) 
     }
   };
 
-  const currentDraft = hasDrafts && drafts[tone] ? drafts[tone] : draft;
-
   return (
     <div className="bg-card rounded-xl shadow-card p-6">
       <div className="flex items-center justify-between mb-4">
@@ -85,7 +83,7 @@ export function AIReplyEditor({ emailId, draft, onChange }: AIReplyEditorProps) 
       </div>
 
       <textarea
-        value={currentDraft}
+        value={draft}
         onChange={(e) => onChange(e.target.value)}
         rows={10}
         className="w-full text-sm p-4 rounded-lg bg-secondary/50 border border-border outline-none focus:ring-2 focus:ring-primary/20 resize-y leading-relaxed"
