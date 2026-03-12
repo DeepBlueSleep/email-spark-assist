@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { RecommendedSKU, ExtractedOrderItem } from "@/data/mockData";
-import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X, AlertTriangle, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { invokeFunction } from "@/lib/api";
 
