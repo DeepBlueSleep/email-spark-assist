@@ -40,7 +40,7 @@ const Index = () => {
       {/* Main layout */}
       <div className="flex flex-1 min-h-0">
         <div className="w-[380px] shrink-0">
-          <EmailList emails={emails} selectedId={effectiveSelectedId} onSelect={(e) => setSelectedId(e.id)} />
+          <EmailList emails={emails} selectedId={effectiveSelectedId} onSelect={(e) => setSelectedId(e.id)} statuses={statuses} />
         </div>
         {selectedEmail ? (
           <EmailDetail email={selectedEmail} onStatusChange={updateStatus} />
