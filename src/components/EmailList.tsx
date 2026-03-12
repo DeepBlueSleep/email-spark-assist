@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Email, Sentiment, Intent, Status } from "@/data/mockData";
+import { StatusDef } from "@/hooks/useStatuses";
 import { Search, Filter, Mail, ChevronDown, Paperclip } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatLabel } from "@/lib/utils";
@@ -32,9 +33,10 @@ interface EmailListProps {
   emails: Email[];
   selectedId: string | null;
   onSelect: (email: Email) => void;
+  statuses: StatusDef[];
 }
 
-export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
+export function EmailList({ emails, selectedId, onSelect, statuses }: EmailListProps) {
   const [search, setSearch] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<Sentiment | "all">("all");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
@@ -103,12 +105,9 @@ export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
             </select>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full text-xs p-1.5 rounded-md bg-secondary border-0 outline-none">
               <option value="all">All Statuses</option>
-              <option value="New">New</option>
-              <option value="AI Processed">AI Processed</option>
-              <option value="Awaiting Review">Awaiting Review</option>
-              <option value="Approved">Approved</option>
-              <option value="Replied">Replied</option>
-              <option value="Escalated">Escalated</option>
+              {statuses.map((s) => (
+                <option key={s.key} value={s.display_name}>{s.display_name}</option>
+              ))}
             </select>
           </div>
         )}

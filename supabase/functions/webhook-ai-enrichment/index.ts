@@ -54,7 +54,8 @@ Deno.serve(async (req) => {
       if (payload.sentiment_confidence !== undefined) vals.sentiment_confidence = payload.sentiment_confidence;
       if (payload.intent !== undefined) vals.intent = payload.intent;
       if (payload.intent_confidence !== undefined) vals.intent_confidence = payload.intent_confidence;
-      if (payload.status !== undefined) vals.status = payload.status;
+      // Status is NOT accepted from external payload — auto-set to "AI Processed"
+      vals.status = "AI Processed";
 
       // AI reply drafts
       let drafts: { tone: string; draft: string }[] = [];
@@ -93,7 +94,7 @@ Deno.serve(async (req) => {
         if (vals.sentiment_confidence !== undefined) setClauses.push(`sentiment_confidence = ${vals.sentiment_confidence}`);
         if (vals.intent !== undefined) setClauses.push(`intent = '${vals.intent}'`);
         if (vals.intent_confidence !== undefined) setClauses.push(`intent_confidence = ${vals.intent_confidence}`);
-        if (vals.status !== undefined) setClauses.push(`status = '${vals.status}'`);
+        setClauses.push(`status = '${vals.status}'`);
         if (vals.ai_reply_draft !== undefined) setClauses.push(`ai_reply_draft = '${vals.ai_reply_draft.replace(/'/g, "''")}'`);
         if (vals.recommended_sku_codes !== undefined) setClauses.push(`recommended_sku_codes = '${vals.recommended_sku_codes}'::jsonb`);
 
