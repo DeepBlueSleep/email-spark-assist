@@ -1,7 +1,7 @@
 import { corsHeaders } from "../_shared/db.ts";
 
 const NOTIFICATION_URL =
-  "https://n8n.srv1031900.hstgr.cloud/webhook-test/a2647686-dd8d-492b-b418-dae2c37045e8";
+  "https://n8n.srv1031900.hstgr.cloud/webhook/a2647686-dd8d-492b-b418-dae2c37045e8";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
