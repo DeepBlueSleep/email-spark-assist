@@ -55,6 +55,9 @@ Deno.serve(async (req) => {
       if (fields.phone !== undefined) setClauses.push(`phone = '${(fields.phone || "").replace(/'/g, "''")}'`);
       if (fields.company !== undefined) setClauses.push(`company = '${(fields.company || "").replace(/'/g, "''")}'`);
       if (fields.notes !== undefined) setClauses.push(`notes = '${(fields.notes || "").replace(/'/g, "''")}'`);
+      if (fields.credit_limit !== undefined) setClauses.push(`credit_limit = ${Number(fields.credit_limit)}`);
+      if (fields.credit_terms !== undefined) setClauses.push(`credit_terms = '${(fields.credit_terms || "").replace(/'/g, "''")}'`);
+      if (fields.credit_used !== undefined) setClauses.push(`credit_used = ${Number(fields.credit_used)}`);
       setClauses.push("updated_at = now()");
 
       await sql.unsafe(`UPDATE customers SET ${setClauses.join(", ")} WHERE id = '${id}'`);
