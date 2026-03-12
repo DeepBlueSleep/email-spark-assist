@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Email, Status, ExtractedOrderItem } from "@/data/mockData";
 import { AIAnalysisPanel } from "./AIAnalysisPanel";
 import { OrderDataTable } from "./OrderDataTable";
