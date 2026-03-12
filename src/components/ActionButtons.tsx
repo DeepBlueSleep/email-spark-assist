@@ -155,6 +155,45 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
             <p className="text-sm text-muted-foreground mb-3">
               Send this <span className="font-medium text-foreground">{selectedTone}</span> reply to <span className="font-medium text-foreground">{email.customer_name}</span>?
             </p>
+
+            {/* Credit Check Result */}
+            {orderTotal > 0 && (
+              <div className="mb-4">
+                {checkingCredit ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg p-3">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Checking credit terms…
+                  </div>
+                ) : creditCheck && (
+                  <div className={`rounded-lg p-3 text-xs space-y-1.5 ${
+                    creditCheck.status === "exceeded"
+                      ? "bg-destructive/10 border border-destructive/20"
+                      : creditCheck.status === "warning"
+                      ? "bg-amber-500/10 border border-amber-500/20"
+                      : "bg-sentiment-positive/10 border border-sentiment-positive/20"
+                  }`}>
+                    <div className="flex items-center gap-2 font-semibold">
+                      {creditCheck.status === "exceeded" ? (
+                        <><AlertTriangle className="w-4 h-4 text-destructive" /><span className="text-destructive">Credit Limit Exceeded</span></>
+                      ) : creditCheck.status === "warning" ? (
+                        <><AlertTriangle className="w-4 h-4 text-amber-600" /><span className="text-amber-600">Credit Warning</span></>
+                      ) : (
+                        <><ShieldCheck className="w-4 h-4 text-sentiment-positive" /><span className="text-sentiment-positive">Credit Check Passed</span></>
+                      )}
+                    </div>
+                    <p className="text-muted-foreground">{creditCheck.message}</p>
+                    {creditCheck.credit_limit > 0 && (
+                      <div className="flex gap-4 pt-1 text-muted-foreground">
+                        <span>Limit: <span className="font-medium text-foreground">${creditCheck.credit_limit.toFixed(2)}</span></span>
+                        <span>Used: <span className="font-medium text-foreground">${creditCheck.credit_used.toFixed(2)}</span></span>
+                        <span>Order: <span className="font-medium text-foreground">${creditCheck.order_total.toFixed(2)}</span></span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="bg-secondary/50 rounded-lg p-4 max-h-48 overflow-y-auto mb-4">
               <pre className="text-xs whitespace-pre-wrap font-sans text-foreground/80">{replyDraft}</pre>
             </div>
@@ -166,7 +205,7 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
                 className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-sentiment-positive text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Confirm & Send
+                {creditCheck?.status === "exceeded" ? "Send Anyway" : "Confirm & Send"}
               </button>
             </div>
           </div>
