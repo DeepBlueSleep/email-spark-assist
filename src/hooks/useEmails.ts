@@ -65,16 +65,18 @@ export function useEmails() {
                 const normalizedCode = String(ref.sku_code ?? "").trim().toUpperCase();
                 if (!normalizedCode) return null;
                 const p = productsMap[normalizedCode];
+                // Skip if product doesn't exist, is inactive, or out of stock
+                if (!p || p.is_active === false || (p.stock_level ?? 0) <= 0) return null;
                 return {
-                  sku_code: normalizedCode,
-                  name: p?.name || normalizedCode,
-                  category: p?.category || "Uncategorized",
-                  color: p?.color || "N/A",
-                  size: p?.size || "N/A",
-                  price: Number(p?.price) || 0,
-                  stock_level: p?.stock_level || 0,
+                  sku_code: p.sku_code,
+                  name: p.name,
+                  category: p.category || "",
+                  color: p.color || "",
+                  size: p.size || "",
+                  price: Number(p.price) || 0,
+                  stock_level: p.stock_level || 0,
                   match_reason: ref.match_reason || "",
-                  image_url: p?.image_url || "",
+                  image_url: p.image_url || "",
                 };
               })
               .filter((sku): sku is RecommendedSKU => sku !== null),
