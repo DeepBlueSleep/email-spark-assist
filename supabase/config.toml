@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.api-drafts]
 verify_jwt = false
+
+[functions.api-customers]
+verify_jwt = false
