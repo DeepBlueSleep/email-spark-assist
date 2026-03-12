@@ -50,8 +50,6 @@ export function AIReplyEditor({ emailId, draft, onChange }: AIReplyEditorProps) 
     }
   };
 
-  const currentDraft = hasDrafts && drafts[tone] ? drafts[tone] : draft;
-
   return (
     <div className="bg-card rounded-xl shadow-card p-6">
       <div className="flex items-center justify-between mb-4">
