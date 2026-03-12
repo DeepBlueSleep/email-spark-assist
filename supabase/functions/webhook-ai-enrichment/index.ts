@@ -86,22 +86,19 @@ Deno.serve(async (req) => {
         vals.recommended_sku_codes = JSON.stringify(skuRefs);
       }
 
-      // Apply updates
-      if (Object.keys(vals).length > 0) {
-        // Build dynamic SET clause
-        const setClauses: string[] = [];
-        if (vals.sentiment !== undefined) setClauses.push(`sentiment = '${vals.sentiment}'`);
-        if (vals.sentiment_confidence !== undefined) setClauses.push(`sentiment_confidence = ${vals.sentiment_confidence}`);
-        if (vals.intent !== undefined) setClauses.push(`intent = '${vals.intent}'`);
-        if (vals.intent_confidence !== undefined) setClauses.push(`intent_confidence = ${vals.intent_confidence}`);
-        setClauses.push(`status = '${vals.status}'`);
-        if (vals.ai_reply_draft !== undefined) setClauses.push(`ai_reply_draft = '${vals.ai_reply_draft.replace(/'/g, "''")}'`);
-        if (vals.recommended_sku_codes !== undefined) setClauses.push(`recommended_sku_codes = '${vals.recommended_sku_codes}'::jsonb`);
-
-        if (setClauses.length > 0) {
-          await sql`UPDATE emails SET ${sql.unsafe(setClauses.join(", "))}, updated_at = now() WHERE id = ${dbEmailId}`;
-        }
-      }
+      // Apply updates using a single parameterized query
+      await sql`
+        UPDATE emails SET
+          sentiment = COALESCE(${vals.sentiment ?? null}, sentiment),
+          sentiment_confidence = COALESCE(${vals.sentiment_confidence ?? null}, sentiment_confidence),
+          intent = COALESCE(${vals.intent ?? null}, intent),
+          intent_confidence = COALESCE(${vals.intent_confidence ?? null}, intent_confidence),
+          status = ${vals.status},
+          ai_reply_draft = COALESCE(${vals.ai_reply_draft ?? null}, ai_reply_draft),
+          recommended_sku_codes = COALESCE(${vals.recommended_sku_codes ? sql`${vals.recommended_sku_codes}::jsonb` : null}, recommended_sku_codes),
+          updated_at = now()
+        WHERE id = ${dbEmailId}
+      `;
 
       // Extracted order items
       if (payload.extracted_order?.length > 0) {
