@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { RecommendedSKU } from "@/data/mockData";
-import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X } from "lucide-react";
+import { RecommendedSKU, ExtractedOrderItem } from "@/data/mockData";
+import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { invokeFunction } from "@/lib/api";
 
@@ -15,6 +15,8 @@ interface DraftOrderItem {
   stock_level: number;
   match_reason: string;
   quantity: number;
+  requested_quantity: number;
+  stock_insufficient: boolean;
 }
 
 interface ProductResult {
@@ -30,11 +32,20 @@ interface ProductResult {
 
 interface DraftOrderProps {
   recommendedSkus: RecommendedSKU[];
+  extractedOrderItems?: ExtractedOrderItem[];
 }
 
-export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
-  const [items, setItems] = useState<DraftOrderItem[]>(() =>
-    recommendedSkus.map((sku) => ({
+function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[] = []): DraftOrderItem[] {
+  return skus.map((sku) => {
+    // Find matching extracted order item by SKU code (item_code)
+    const matchedOrder = orderItems.find(
+      (oi) => oi.item_code && oi.item_code.toUpperCase() === sku.sku_code.toUpperCase()
+    );
+    const requestedQty = matchedOrder?.quantity || 1;
+    const stockInsufficient = requestedQty > sku.stock_level;
+    const finalQty = stockInsufficient ? sku.stock_level : requestedQty;
+
+    return {
       id: `do-${sku.sku_code}`,
       sku_code: sku.sku_code,
       name: sku.name,
@@ -44,8 +55,16 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
       price: sku.price,
       stock_level: sku.stock_level,
       match_reason: sku.match_reason,
-      quantity: 1,
-    }))
+      quantity: finalQty,
+      requested_quantity: requestedQty,
+      stock_insufficient: stockInsufficient,
+    };
+  });
+}
+
+export function DraftOrder({ recommendedSkus, extractedOrderItems = [] }: DraftOrderProps) {
+  const [items, setItems] = useState<DraftOrderItem[]>(() =>
+    buildDraftItems(recommendedSkus, extractedOrderItems)
   );
   const [removed, setRemoved] = useState<DraftOrderItem[]>([]);
   const [showSearch, setShowSearch] = useState(false);
@@ -57,20 +76,7 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
   const [prevSkus, setPrevSkus] = useState(recommendedSkus);
   if (recommendedSkus !== prevSkus) {
     setPrevSkus(recommendedSkus);
-    setItems(
-      recommendedSkus.map((sku) => ({
-        id: `do-${sku.sku_code}`,
-        sku_code: sku.sku_code,
-        name: sku.name,
-        category: sku.category,
-        color: sku.color,
-        size: sku.size,
-        price: sku.price,
-        stock_level: sku.stock_level,
-        match_reason: sku.match_reason,
-        quantity: 1,
-      }))
-    );
+    setItems(buildDraftItems(recommendedSkus, extractedOrderItems));
     setRemoved([]);
     setShowSearch(false);
     setSearchQuery("");
@@ -120,6 +126,8 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
       stock_level: product.stock_level || 0,
       match_reason: "Manually added",
       quantity: 1,
+      requested_quantity: 1,
+      stock_insufficient: false,
     };
     setItems((prev) => [...prev, newItem]);
     setShowSearch(false);
@@ -258,6 +266,12 @@ export function DraftOrder({ recommendedSkus }: DraftOrderProps) {
                   </td>
                   <td className="py-2 px-2">
                     <input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)} className="w-14 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    {item.stock_insufficient && (
+                      <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600">
+                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                        <span>Requested {item.requested_quantity}, only {item.stock_level} in stock</span>
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 px-2 text-[10px] text-primary/70 italic max-w-[180px]">{item.match_reason}</td>
                   <td className="py-2 px-2">
