@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Email, Status } from "@/data/mockData";
-import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck } from "lucide-react";
+import type { DraftOrderItem } from "./DraftOrder";
+import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck, Ban } from "lucide-react";
 import { invokeFunction } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -10,6 +11,7 @@ interface ActionButtonsProps {
   selectedTone: string;
   onStatusChange: (id: string, status: Status) => void;
   orderTotal?: number;
+  draftOrderItems?: DraftOrderItem[];
 }
 
 interface CreditCheckResult {
