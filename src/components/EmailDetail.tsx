@@ -114,7 +114,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
 
         {/* Actions — only when there's enrichment data to act on */}
         {hasAnyEnrichment && (
-          <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} orderTotal={orderTotal} />
+          <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} orderTotal={orderTotal} draftOrderItems={draftOrderItems} />
         )}
       </div>
 
