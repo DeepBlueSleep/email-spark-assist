@@ -116,12 +116,14 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         approved_at: new Date().toISOString(),
       };
 
-      // Post to n8n webhook
+      // Post to n8n webhook via server-side proxy (avoids CORS)
       try {
-        await fetch("https://n8n.srv1031900.hstgr.cloud/webhook-test/b32920d4-7c8a-4b20-b0e1-b05d88858f7c", {
+        await invokeFunction("api-webhook-proxy", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: {
+            webhook_url: "https://n8n.srv1031900.hstgr.cloud/webhook-test/b32920d4-7c8a-4b20-b0e1-b05d88858f7c",
+            payload,
+          },
         });
       } catch (webhookErr) {
         console.warn("Webhook post failed (non-blocking):", webhookErr);
