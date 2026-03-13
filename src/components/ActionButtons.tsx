@@ -79,15 +79,61 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     runCreditCheck();
   }, [showConfirm, email.email, orderTotal]);
 
+  const isCreditExceeded = creditCheck?.status === "exceeded";
+
   const handleApproveAndSend = async () => {
+    if (isCreditExceeded) return;
     setIsSending(true);
     try {
+      // Build payload with all quotation data
+      const payload = {
+        email_id: email.id,
+        customer_name: email.customer_name,
+        customer_email: email.email,
+        customer_id: email.customer_id || null,
+        subject: email.subject,
+        intent: email.intent,
+        sentiment: email.sentiment,
+        reply_tone: selectedTone,
+        reply_draft: replyDraft,
+        order_total: orderTotal,
+        order_items: draftOrderItems.map((item) => ({
+          sku_code: item.sku_code,
+          name: item.name,
+          category: item.category,
+          color: item.color,
+          size: item.size,
+          price: item.price,
+          quantity: item.quantity,
+          line_total: item.price * item.quantity,
+        })),
+        credit_check: creditCheck ? {
+          status: creditCheck.status,
+          credit_limit: Number(creditCheck.credit_limit),
+          credit_used: Number(creditCheck.credit_used),
+          order_total: Number(creditCheck.order_total),
+        } : null,
+        approved_at: new Date().toISOString(),
+      };
+
+      // Post to n8n webhook
+      try {
+        await fetch("https://n8n.srv1031900.hstgr.cloud/webhook-test/b32920d4-7c8a-4b20-b0e1-b05d88858f7c", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (webhookErr) {
+        console.warn("Webhook post failed (non-blocking):", webhookErr);
+      }
+
+      // Update email status
       await invokeFunction("api-emails", {
         method: "PATCH",
         body: { id: email.id, status: "Replied", ai_reply_draft: replyDraft },
       });
       onStatusChange(email.id, "Replied");
-      toast.success(`Reply sent to ${email.customer_name} (${selectedTone} tone)`);
+      toast.success(`Quotation sent to ${email.customer_name} (${selectedTone} tone)`);
       setShowConfirm(false);
     } catch (err) {
       toast.error("Failed to send reply");
