@@ -4,20 +4,7 @@ import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X, AlertTriangle, 
 import { cn } from "@/lib/utils";
 import { invokeFunction } from "@/lib/api";
 
-interface DraftOrderItem {
-  id: string;
-  sku_code: string;
-  name: string;
-  category: string;
-  color: string;
-  size: string;
-  price: number;
-  stock_level: number;
-  match_reason: string;
-  quantity: number;
-  requested_quantity: number;
-  stock_insufficient: boolean;
-}
+// DraftOrderItem type is exported from the interface section below
 
 interface ProductResult {
   id: string;
