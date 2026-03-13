@@ -23,7 +23,7 @@ interface CreditCheckResult {
   message: string;
 }
 
-export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange, orderTotal = 0 }: ActionButtonsProps) {
+export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange, orderTotal = 0, draftOrderItems = [] }: ActionButtonsProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showEscalate, setShowEscalate] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
