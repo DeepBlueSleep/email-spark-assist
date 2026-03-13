@@ -30,10 +30,26 @@ interface ProductResult {
   stock_level: number | null;
 }
 
+export interface DraftOrderItem {
+  id: string;
+  sku_code: string;
+  name: string;
+  category: string;
+  color: string;
+  size: string;
+  price: number;
+  stock_level: number;
+  match_reason: string;
+  quantity: number;
+  requested_quantity: number;
+  stock_insufficient: boolean;
+}
+
 interface DraftOrderProps {
   recommendedSkus: RecommendedSKU[];
   extractedOrderItems?: ExtractedOrderItem[];
   onTotalChange?: (total: number) => void;
+  onItemsChange?: (items: DraftOrderItem[]) => void;
 }
 
 function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[] = []): DraftOrderItem[] {
