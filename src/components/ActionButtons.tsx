@@ -184,9 +184,9 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
                     <p className="text-muted-foreground">{creditCheck.message}</p>
                     {creditCheck.credit_limit > 0 && (
                       <div className="flex gap-4 pt-1 text-muted-foreground">
-                        <span>Limit: <span className="font-medium text-foreground">${creditCheck.credit_limit.toFixed(2)}</span></span>
-                        <span>Used: <span className="font-medium text-foreground">${creditCheck.credit_used.toFixed(2)}</span></span>
-                        <span>Order: <span className="font-medium text-foreground">${creditCheck.order_total.toFixed(2)}</span></span>
+                        <span>Limit: <span className="font-medium text-foreground">${Number(creditCheck.credit_limit).toFixed(2)}</span></span>
+                        <span>Used: <span className="font-medium text-foreground">${Number(creditCheck.credit_used).toFixed(2)}</span></span>
+                        <span>Order: <span className="font-medium text-foreground">${Number(creditCheck.order_total).toFixed(2)}</span></span>
                       </div>
                     )}
                   </div>
