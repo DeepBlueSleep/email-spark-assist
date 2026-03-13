@@ -3,6 +3,7 @@ import { Email, Status, ExtractedOrderItem } from "@/data/mockData";
 import { AIAnalysisPanel } from "./AIAnalysisPanel";
 import { OrderDataTable } from "./OrderDataTable";
 import { DraftOrder } from "./DraftOrder";
+import type { DraftOrderItem } from "./DraftOrder";
 import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
 import { AttachmentsPanel } from "./AttachmentsPanel";
@@ -19,7 +20,9 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const [selectedTone, setSelectedTone] = useState("Professional");
   const [showAttachments, setShowAttachments] = useState(false);
   const [orderTotal, setOrderTotal] = useState(0);
+  const [draftOrderItems, setDraftOrderItems] = useState<DraftOrderItem[]>([]);
   const handleTotalChange = useCallback((total: number) => setOrderTotal(total), []);
+  const handleItemsChange = useCallback((items: DraftOrderItem[]) => setDraftOrderItems(items), []);
 
   // Reset local state when email changes
   const [prevEmailId, setPrevEmailId] = useState(email.id);
@@ -101,7 +104,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
 
         {/* Draft Order — from recommended SKUs */}
         {hasDraftOrder && (
-          <DraftOrder recommendedSkus={email.recommended_skus} extractedOrderItems={email.extracted_order} onTotalChange={handleTotalChange} />
+          <DraftOrder recommendedSkus={email.recommended_skus} extractedOrderItems={email.extracted_order} onTotalChange={handleTotalChange} onItemsChange={handleItemsChange} />
         )}
 
         {/* AI Reply — only when a draft exists */}
@@ -111,7 +114,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
 
         {/* Actions — only when there's enrichment data to act on */}
         {hasAnyEnrichment && (
-          <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} orderTotal={orderTotal} />
+          <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} orderTotal={orderTotal} draftOrderItems={draftOrderItems} />
         )}
       </div>
 

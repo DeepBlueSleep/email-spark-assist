@@ -4,7 +4,20 @@ import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X, AlertTriangle, 
 import { cn } from "@/lib/utils";
 import { invokeFunction } from "@/lib/api";
 
-interface DraftOrderItem {
+// DraftOrderItem type is exported from the interface section below
+
+interface ProductResult {
+  id: string;
+  sku_code: string;
+  name: string;
+  category: string;
+  color: string | null;
+  size: string | null;
+  price: number | null;
+  stock_level: number | null;
+}
+
+export interface DraftOrderItem {
   id: string;
   sku_code: string;
   name: string;
@@ -19,21 +32,11 @@ interface DraftOrderItem {
   stock_insufficient: boolean;
 }
 
-interface ProductResult {
-  id: string;
-  sku_code: string;
-  name: string;
-  category: string;
-  color: string | null;
-  size: string | null;
-  price: number | null;
-  stock_level: number | null;
-}
-
 interface DraftOrderProps {
   recommendedSkus: RecommendedSKU[];
   extractedOrderItems?: ExtractedOrderItem[];
   onTotalChange?: (total: number) => void;
+  onItemsChange?: (items: DraftOrderItem[]) => void;
 }
 
 function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[] = []): DraftOrderItem[] {
@@ -63,16 +66,17 @@ function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[
   });
 }
 
-export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalChange }: DraftOrderProps) {
+export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalChange, onItemsChange }: DraftOrderProps) {
   const [items, setItems] = useState<DraftOrderItem[]>(() =>
     buildDraftItems(recommendedSkus, extractedOrderItems)
   );
 
-  // Report total to parent whenever items change
+  // Report total and items to parent whenever items change
   useEffect(() => {
     const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     onTotalChange?.(total);
-  }, [items, onTotalChange]);
+    onItemsChange?.(items);
+  }, [items, onTotalChange, onItemsChange]);
   const [removed, setRemoved] = useState<DraftOrderItem[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
