@@ -247,14 +247,20 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
             </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
-              <button
-                onClick={handleApproveAndSend}
-                disabled={isSending}
-                className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-sentiment-positive text-primary-foreground hover:opacity-90 disabled:opacity-50"
-              >
-                {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                {creditCheck?.status === "exceeded" ? "Send Anyway" : "Confirm & Send"}
-              </button>
+              {isCreditExceeded ? (
+                <div className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-destructive/10 text-destructive border border-destructive/20 cursor-not-allowed">
+                  <Ban className="w-4 h-4" /> Blocked — Credit Exceeded
+                </div>
+              ) : (
+                <button
+                  onClick={handleApproveAndSend}
+                  disabled={isSending || checkingCredit}
+                  className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-sentiment-positive text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  Confirm & Send
+                </button>
+              )}
             </div>
           </div>
         </div>
