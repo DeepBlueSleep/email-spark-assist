@@ -77,7 +77,7 @@ export async function syncProductToVectorStore(product: ProductData) {
   if (existing && existing.length > 0) {
     const { error: updateError } = await supabase
       .from("product_knowledge_base")
-      .update({ context, metadata })
+      .update({ content: context, metadata })
       .eq("id", existing[0].id);
 
     if (updateError) {
@@ -86,7 +86,7 @@ export async function syncProductToVectorStore(product: ProductData) {
   } else {
     const { error: insertError } = await supabase
       .from("product_knowledge_base")
-      .insert({ context, metadata });
+      .insert({ content: context, metadata });
 
     if (insertError) {
       throw new Error(`Vector store INSERT failed: ${insertError.message}`);
