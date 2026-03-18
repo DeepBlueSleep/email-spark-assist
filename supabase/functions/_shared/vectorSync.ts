@@ -1,11 +1,3 @@
-import { neon } from "https://esm.sh/@neondatabase/serverless@0.10.4";
-
-function getVectorDb() {
-  const url = Deno.env.get("VECTOR_DB_URL");
-  if (!url) throw new Error("VECTOR_DB_URL is not set");
-  return neon(url);
-}
-
 interface ProductData {
   sku_code: string;
   name: string;
@@ -57,24 +49,61 @@ function buildMetadata(p: ProductData): Record<string, unknown> {
   };
 }
 
+function getVectorStoreConfig() {
+  const url = Deno.env.get("VECTOR_DB_URL"); // Supabase project URL e.g. https://xxx.supabase.co
+  const key = Deno.env.get("VECTOR_DB_SERVICE_KEY"); // Service role key for the vector store project
+  if (!url || !key) throw new Error("VECTOR_DB_URL or VECTOR_DB_SERVICE_KEY is not set");
+  return { url: url.replace(/\/$/, ""), key };
+}
+
 export async function syncProductToVectorStore(product: ProductData) {
-  const sql = getVectorDb();
+  const { url, key } = getVectorStoreConfig();
   const context = buildContext(product);
   const metadata = buildMetadata(product);
 
-  // Upsert by sku_code in metadata — first check if exists
-  const existing = await sql`
-    SELECT id FROM product_knowledge_base WHERE metadata->>'sku_code' = ${product.sku_code} LIMIT 1
-  `;
+  const headers = {
+    "Content-Type": "application/json",
+    "apikey": key,
+    "Authorization": `Bearer ${key}`,
+    "Prefer": "return=representation",
+  };
+
+  // Check if exists by sku_code in metadata
+  const selectRes = await fetch(
+    `${url}/rest/v1/product_knowledge_base?metadata->>sku_code=eq.${encodeURIComponent(product.sku_code)}&select=id&limit=1`,
+    { headers }
+  );
+
+  if (!selectRes.ok) {
+    throw new Error(`Vector store SELECT failed: ${selectRes.status} ${await selectRes.text()}`);
+  }
+
+  const existing = await selectRes.json();
 
   if (existing.length > 0) {
-    await sql`
-      UPDATE product_knowledge_base SET context = ${context}, metadata = ${JSON.stringify(metadata)}::jsonb WHERE id = ${existing[0].id}
-    `;
+    const updateRes = await fetch(
+      `${url}/rest/v1/product_knowledge_base?id=eq.${existing[0].id}`,
+      {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ context, metadata }),
+      }
+    );
+    if (!updateRes.ok) {
+      throw new Error(`Vector store UPDATE failed: ${updateRes.status} ${await updateRes.text()}`);
+    }
   } else {
-    await sql`
-      INSERT INTO product_knowledge_base (context, metadata) VALUES (${context}, ${JSON.stringify(metadata)}::jsonb)
-    `;
+    const insertRes = await fetch(
+      `${url}/rest/v1/product_knowledge_base`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ context, metadata }),
+      }
+    );
+    if (!insertRes.ok) {
+      throw new Error(`Vector store INSERT failed: ${insertRes.status} ${await insertRes.text()}`);
+    }
   }
 }
 
