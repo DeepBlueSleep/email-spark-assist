@@ -77,7 +77,7 @@ export async function syncProductToVectorStore(product: ProductData) {
   if (existing && existing.length > 0) {
     const { error: updateError } = await supabase
       .from("product_knowledge_base")
-      .update({ context, metadata })
+      .update({ content: context, metadata })
       .eq("id", existing[0].id);
 
     if (updateError) {
