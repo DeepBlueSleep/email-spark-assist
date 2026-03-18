@@ -64,16 +64,11 @@ Deno.serve(async (req) => {
       inserted.push(...rows);
     }
 
-    // Notify external webhook
-    const notifyUrl = "https://n8n.srv1031900.hstgr.cloud/webhook-test/a2647686-dd8d-492b-b418-dae2c37045e8";
+    // Sync to vector store
     try {
-      await fetch(notifyUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: "products_upserted", products: inserted }),
-      });
+      await syncProductsToVectorStore(inserted);
     } catch (e) {
-      console.error("Failed to notify product webhook:", e);
+      console.error("Vector store sync error:", e);
     }
 
     return new Response(

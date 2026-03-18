@@ -76,6 +76,16 @@ Deno.serve(async (req) => {
 
       await sql.unsafe(`UPDATE products SET ${setClauses.join(", ")} WHERE id = '${id}'`);
 
+      // Sync updated product to vector store
+      const updated = await sql`SELECT * FROM products WHERE id = ${id} LIMIT 1`;
+      if (updated.length > 0) {
+        try {
+          await syncProductToVectorStore(updated[0]);
+        } catch (e) {
+          console.error("Vector sync error:", e);
+        }
+      }
+
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
