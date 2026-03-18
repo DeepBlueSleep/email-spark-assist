@@ -64,16 +64,16 @@ export async function syncProductToVectorStore(product: ProductData) {
 
   // Upsert by sku_code in metadata — first check if exists
   const existing = await sql`
-    SELECT id FROM documents WHERE metadata->>'sku_code' = ${product.sku_code} LIMIT 1
+    SELECT id FROM product_knowledge_base WHERE metadata->>'sku_code' = ${product.sku_code} LIMIT 1
   `;
 
   if (existing.length > 0) {
     await sql`
-      UPDATE documents SET context = ${context}, metadata = ${JSON.stringify(metadata)}::jsonb WHERE id = ${existing[0].id}
+      UPDATE product_knowledge_base SET context = ${context}, metadata = ${JSON.stringify(metadata)}::jsonb WHERE id = ${existing[0].id}
     `;
   } else {
     await sql`
-      INSERT INTO documents (context, metadata) VALUES (${context}, ${JSON.stringify(metadata)}::jsonb)
+      INSERT INTO product_knowledge_base (context, metadata) VALUES (${context}, ${JSON.stringify(metadata)}::jsonb)
     `;
   }
 }
