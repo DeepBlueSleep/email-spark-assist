@@ -55,7 +55,10 @@ function getVectorClient() {
   const url = Deno.env.get("VECTOR_DB_URL"); // Supabase project URL (https://xxx.supabase.co)
   const key = Deno.env.get("VECTOR_DB_SERVICE_KEY");
   if (!url || !key) throw new Error("VECTOR_DB_URL or VECTOR_DB_SERVICE_KEY is not set");
-  return createClient(url, key);
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    db: { schema: 'public' },
+  });
 }
 
 export async function syncProductToVectorStore(product: ProductData) {
