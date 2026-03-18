@@ -34,6 +34,13 @@ Deno.serve(async (req) => {
         VALUES (${p.sku_code}, ${p.name}, ${p.category}, ${p.subcategory || ""}, ${p.tags || []}, ${p.color || ""}, ${p.size || ""}, ${p.material || ""}, ${p.price || 0}, ${p.stock_level || 0}, ${p.description || ""}, ${p.image_url || ""}, ${p.is_active !== undefined ? p.is_active : true})
         RETURNING *
       `;
+      // Sync to vector store
+      try {
+        await syncProductToVectorStore(rows[0]);
+      } catch (e) {
+        console.error("Vector sync error:", e);
+      }
+
       return new Response(JSON.stringify({ product: rows[0] }), {
         status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
