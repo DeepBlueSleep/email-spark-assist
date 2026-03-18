@@ -1,4 +1,5 @@
 import { getDb, corsHeaders } from "../_shared/db.ts";
+import { syncProductToVectorStore } from "../_shared/vectorSync.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -33,6 +34,13 @@ Deno.serve(async (req) => {
         VALUES (${p.sku_code}, ${p.name}, ${p.category}, ${p.subcategory || ""}, ${p.tags || []}, ${p.color || ""}, ${p.size || ""}, ${p.material || ""}, ${p.price || 0}, ${p.stock_level || 0}, ${p.description || ""}, ${p.image_url || ""}, ${p.is_active !== undefined ? p.is_active : true})
         RETURNING *
       `;
+      // Sync to vector store
+      try {
+        await syncProductToVectorStore(rows[0]);
+      } catch (e) {
+        console.error("Vector sync error:", e);
+      }
+
       return new Response(JSON.stringify({ product: rows[0] }), {
         status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -67,6 +75,16 @@ Deno.serve(async (req) => {
       setClauses.push("updated_at = now()");
 
       await sql.unsafe(`UPDATE products SET ${setClauses.join(", ")} WHERE id = '${id}'`);
+
+      // Sync updated product to vector store
+      const updated = await sql`SELECT * FROM products WHERE id = ${id} LIMIT 1`;
+      if (updated.length > 0) {
+        try {
+          await syncProductToVectorStore(updated[0]);
+        } catch (e) {
+          console.error("Vector sync error:", e);
+        }
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
