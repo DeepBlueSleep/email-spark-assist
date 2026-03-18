@@ -1,0 +1,1 @@
+DELETE FROM order_items; DELETE FROM email_attachments; DELETE FROM ai_reply_drafts; DELETE FROM emails;
