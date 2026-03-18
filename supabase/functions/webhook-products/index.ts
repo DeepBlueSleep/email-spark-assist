@@ -1,4 +1,5 @@
 import { getDb, corsHeaders } from "../_shared/db.ts";
+import { syncProductsToVectorStore } from "../_shared/vectorSync.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
