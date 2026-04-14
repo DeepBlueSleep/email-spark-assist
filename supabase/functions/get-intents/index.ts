@@ -5,13 +5,30 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   const sql = getDb();
+
+  try {
+    if (req.method === "POST") {
+      const body = await req.json();
+      const { intents } = body;
+      if (intents && Array.isArray(intents)) {
+        for (const intent of intents) {
+          await sql`INSERT INTO intents (key, display_name, is_active) VALUES (${intent.key}, ${intent.display_name}, ${intent.is_active ?? true}) ON CONFLICT (key) DO UPDATE SET display_name = ${intent.display_name}`;
+        }
+        return new Response(JSON.stringify({ success: true, inserted: intents.length }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ error: "intents array required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
   try {
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
