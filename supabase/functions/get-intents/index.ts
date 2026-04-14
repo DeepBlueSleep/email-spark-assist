@@ -30,17 +30,7 @@ Deno.serve(async (req) => {
       });
     }
 
-  try {
-    const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
-    if (webhookSecret) {
-      const providedSecret = req.headers.get("x-webhook-secret");
-      if (providedSecret !== webhookSecret) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
+    // GET handler
     const url = new URL(req.url);
     const active = url.searchParams.get("active");
 
