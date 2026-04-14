@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+// NeonDB-only: all data access goes through edge functions
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;

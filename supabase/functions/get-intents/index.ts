@@ -5,7 +5,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -14,16 +14,26 @@ Deno.serve(async (req) => {
   const sql = getDb();
 
   try {
-    const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
-    if (webhookSecret) {
-      const providedSecret = req.headers.get("x-webhook-secret");
-      if (providedSecret !== webhookSecret) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (req.method === "POST") {
+      const body = await req.json();
+      const { intents } = body;
+      if (intents && Array.isArray(intents)) {
+        for (const intent of intents) {
+          const existing = await sql`SELECT id FROM intents WHERE key = ${intent.key}`;
+          if (existing.length === 0) {
+            await sql`INSERT INTO intents (key, display_name, is_active) VALUES (${intent.key}, ${intent.display_name}, ${intent.is_active ?? true})`;
+          }
+        }
+        return new Response(JSON.stringify({ success: true, inserted: intents.length }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      return new Response(JSON.stringify({ error: "intents array required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
+    // GET handler
     const url = new URL(req.url);
     const active = url.searchParams.get("active");
 

@@ -1,0 +1,1 @@
+TRUNCATE TABLE ai_reply_drafts, order_items, email_attachments, emails, webhook_logs, intents, customers, products CASCADE;

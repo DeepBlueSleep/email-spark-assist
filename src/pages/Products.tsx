@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { invokeFunction } from "@/lib/api";
-import { supabase } from "@/integrations/supabase/client";
 import { Bot, Plus, Search, Package, Edit2, Trash2, X, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -101,7 +100,7 @@ export default function Products() {
         const data = await invokeFunction("api-products", { method: "POST", body: payload });
         toast.success("Product added");
         // Notify external webhook about the new product
-        supabase.functions.invoke("notify-product-added", { body: data.product }).catch((err) =>
+        invokeFunction("webhook-products", { method: "POST", body: data.product }).catch((err) =>
           console.error("Failed to notify product webhook:", err)
         );
       }
