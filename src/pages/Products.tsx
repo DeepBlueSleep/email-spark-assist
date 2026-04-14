@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { invokeFunction } from "@/lib/api";
-import { supabase } from "@/integrations/supabase/client";
 import { Bot, Plus, Search, Package, Edit2, Trash2, X, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
