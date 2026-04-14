@@ -19,7 +19,10 @@ Deno.serve(async (req) => {
       const { intents } = body;
       if (intents && Array.isArray(intents)) {
         for (const intent of intents) {
-          await sql`INSERT INTO intents (key, display_name, is_active) VALUES (${intent.key}, ${intent.display_name}, ${intent.is_active ?? true}) ON CONFLICT (key) DO UPDATE SET display_name = ${intent.display_name}`;
+          const existing = await sql`SELECT id FROM intents WHERE key = ${intent.key}`;
+          if (existing.length === 0) {
+            await sql`INSERT INTO intents (key, display_name, is_active) VALUES (${intent.key}, ${intent.display_name}, ${intent.is_active ?? true})`;
+          }
         }
         return new Response(JSON.stringify({ success: true, inserted: intents.length }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
