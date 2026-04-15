@@ -1,35 +1,39 @@
-## Plan: Keep Sample Data as Static Fallback, Prepare for External API Swap
 
-### Approach
 
-Instead of removing the product infrastructure, refactor it into a **product service abstraction layer** that currently returns hardcoded sample data but can be swapped to an external API with minimal changes.
+## Plan: Seed Sample Debtor Data and Add BOXX Client Label
 
 ### What changes
 
-1. **Create `src/lib/productService.ts**` — a single module that exports product query functions (`searchProducts`, `getProductBySku`, `getAllProducts`). Initially these return data from a hardcoded array of the 18 sample SKUs. When the external API is ready, only this file needs to change.
-2. **Update `src/components/DraftOrder.tsx**` — replace the `invokeFunction("api-products", ...)` call with `searchProducts()` from the new service module.
-3. **Update `src/hooks/useEmails.ts**` — replace the product lookup logic (lines 27-31 that use `productsArr` from api-emails) with a call to the product service.
-4. **Update `supabase/functions/api-emails/index.ts**` — remove the product query block (lines 44-61) that fetches from the NeonDB `products` table. Return `products: []` in the response — the frontend will handle product lookups via the service layer instead.
-5. **Keep `src/pages/Products.tsx` and `/products` route** as a read-only product catalog view, but source data from the product service instead of `api-products`. Remove create/edit/delete functionality (since products come from an external source).
-6. **Delete edge functions no longer needed**:
-  - `supabase/functions/api-products/index.ts` — internal CRUD
-  - `supabase/functions/webhook-products/index.ts` — bulk upsert
-  - `supabase/functions/get-products/index.ts` — filtered read
-  - `supabase/functions/_shared/vectorSync.ts` — embeddings sync
-7. **NeonDB `products` table** — leave it for now (no harm), or drop it. Data will come from the service layer.
-8. **Update memory files** to reflect the new architecture.
-9. Remove the`src/pages/Products.tsx` **and** `/products` **route and page**
+1. **Add 12 new columns to `customers` table** (NeonDB via api-customers edge function or direct SQL):
+   - `code` (text, unique) — debtor account code
+   - `address_1`, `address_2`, `address_3` (text)
+   - `fax` (text)
+   - `attention` (text) — contact person
+   - `discount` (text) — stored as text for values like "40%+25% (CN)", "F.O.C"
+   - `agent` (text) — agent code
+   - `delivery_address_1`, `delivery_address_2`, `delivery_address_3`, `delivery_address_4` (text)
+   - `is_boxx` (boolean, default false) — derived from whether code starts with "BOXX -"
 
-### Sample data location
+2. **Clear existing customers and seed 17 sample debtors** into NeonDB. For records without email, use `{code_sanitized}@placeholder.local`. Map credit_terms: "30 days" → "30 days", "C.O.D." → "C.O.D.", "F.O.C" → "F.O.C". Credit limit is numeric (0 for F.O.C entries).
 
-The 18 SKU records you provided will live as a typed array in `src/lib/productService.ts`. The service functions will filter/search this array in-memory.
+3. **Update `api-customers` edge function** — add new columns to POST (upsert), PATCH (parameterized queries replacing `sql.unsafe()`), and GET responses. Add search support for `code` field.
 
-### Swap-over prep
+4. **Update mock-autocount seed data** — replace the 3 dummy customers with the 17 sample debtors, adding `Discount`, `Agent`, `Address`, `IsBoxx` fields to the `ACCustomer` interface.
 
-The service module will have clear comments marking where to replace static data with `fetch()` calls to the external API. The `Product` interface stays the same.
+5. **Update `Customer` interface** in `src/data/mockData.ts` — add optional fields: `code`, `address_1`–`address_3`, `fax`, `attention`, `discount`, `agent`, `delivery_address_1`–`delivery_address_4`, `is_boxx`.
+
+6. **Update `ACCustomer` interface** in `src/lib/autocount.ts` — add `Discount`, `Agent`, `Address1`–`Address3`, `Fax`, `Attention`, `DeliveryAddress1`–`DeliveryAddress4` fields.
+
+7. **Add BOXX badge to UI** — in `EmailDetail.tsx` (or wherever customer info is displayed), show a colored "BOXX" badge next to the customer name when `is_boxx` is true. Also show it in `DraftOrder.tsx` if customer details are visible there.
+
+8. **Update memory** — revise `mem://features/customer-management` with new schema and BOXX flag.
+
+### BOXX detection logic
+Any customer whose `code` starts with `"BOXX - "` gets `is_boxx = true`. This is set at seed/insert time and can be used for display without string parsing on the frontend.
 
 ### Files affected
+- **NeonDB schema**: ALTER TABLE + DELETE + INSERT (via edge function call)
+- **Edit**: `supabase/functions/api-customers/index.ts`, `supabase/functions/mock-autocount/index.ts`, `src/data/mockData.ts`, `src/lib/autocount.ts`
+- **Edit (UI)**: `src/components/EmailDetail.tsx`, `src/components/DraftOrder.tsx` — BOXX badge
+- **Memory**: `mem://features/customer-management`
 
-- **Create**: `src/lib/productService.ts`
-- **Edit**: `src/components/DraftOrder.tsx`, `src/hooks/useEmails.ts`, `supabase/functions/api-emails/index.ts`
-- **Delete**: `supabase/functions/api-products/index.ts`, `supabase/functions/webhook-products/index.ts`, `supabase/functions/get-products/index.ts`, `supabase/functions/_shared/vectorSync.ts, src/pages/Products.tsx`
