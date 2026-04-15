@@ -43,6 +43,19 @@ export interface Customer {
   credit_limit?: number;
   credit_terms?: string;
   credit_used?: number;
+  code?: string;
+  address_1?: string;
+  address_2?: string;
+  address_3?: string;
+  fax?: string;
+  attention?: string;
+  discount?: string;
+  agent?: string;
+  delivery_address_1?: string;
+  delivery_address_2?: string;
+  delivery_address_3?: string;
+  delivery_address_4?: string;
+  is_boxx?: boolean;
 }
 
 export interface Email {
