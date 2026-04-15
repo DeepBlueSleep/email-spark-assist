@@ -30,8 +30,8 @@ Deno.serve(async (req) => {
       const body = await req.json();
       const p = body;
       const rows = await sql`
-        INSERT INTO products (sku_code, name, category, subcategory, tags, color, size, material, price, stock_level, description, image_url, is_active)
-        VALUES (${p.sku_code}, ${p.name}, ${p.category}, ${p.subcategory || ""}, ${p.tags || []}, ${p.color || ""}, ${p.size || ""}, ${p.material || ""}, ${p.price || 0}, ${p.stock_level || 0}, ${p.description || ""}, ${p.image_url || ""}, ${p.is_active !== undefined ? p.is_active : true})
+        INSERT INTO products (sku_code, name, category, subcategory, tags, color, size, material, price, stock_level, description, image_url, is_active, alt_code, base_uom, similar_code)
+        VALUES (${p.sku_code}, ${p.name}, ${p.category}, ${p.subcategory || ""}, ${p.tags || []}, ${p.color || ""}, ${p.size || ""}, ${p.material || ""}, ${p.price || 0}, ${p.stock_level || 0}, ${p.description || ""}, ${p.image_url || ""}, ${p.is_active !== undefined ? p.is_active : true}, ${p.alt_code || ""}, ${p.base_uom || ""}, ${p.similar_code || ""})
         RETURNING *
       `;
       // Sync to vector store
@@ -72,6 +72,9 @@ Deno.serve(async (req) => {
       if (fields.image_url !== undefined) setClauses.push(`image_url = '${safeStr(fields.image_url)}'`);
       if (fields.is_active !== undefined) setClauses.push(`is_active = ${fields.is_active}`);
       if (fields.tags !== undefined) setClauses.push(`tags = ARRAY[${(fields.tags || []).map((t: string) => `'${safeStr(t)}'`).join(",")}]::text[]`);
+      if (fields.alt_code !== undefined) setClauses.push(`alt_code = '${safeStr(fields.alt_code)}'`);
+      if (fields.base_uom !== undefined) setClauses.push(`base_uom = '${safeStr(fields.base_uom)}'`);
+      if (fields.similar_code !== undefined) setClauses.push(`similar_code = '${safeStr(fields.similar_code)}'`);
       setClauses.push("updated_at = now()");
 
       await sql.unsafe(`UPDATE products SET ${setClauses.join(", ")} WHERE id = '${id}'`);
