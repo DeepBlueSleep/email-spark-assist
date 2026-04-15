@@ -14,6 +14,9 @@ interface ProductData {
   description?: string;
   image_url?: string;
   is_active?: boolean;
+  alt_code?: string;
+  base_uom?: string;
+  similar_code?: string;
 }
 
 function buildContext(p: ProductData): string {
@@ -29,6 +32,9 @@ function buildContext(p: ProductData): string {
     p.price ? `Price: $${Number(p.price).toFixed(2)}` : null,
     p.stock_level !== undefined ? `Stock: ${p.stock_level}` : null,
     p.tags?.length ? `Tags: ${p.tags.join(", ")}` : null,
+    p.alt_code ? `Alt Code: ${p.alt_code}` : null,
+    p.base_uom ? `UOM: ${p.base_uom}` : null,
+    p.similar_code ? `Similar: ${p.similar_code}` : null,
   ];
   return parts.filter(Boolean).join(". ");
 }
@@ -48,6 +54,9 @@ function buildMetadata(p: ProductData): Record<string, unknown> {
     description: p.description || "",
     image_url: p.image_url || "",
     is_active: p.is_active ?? true,
+    alt_code: p.alt_code || "",
+    base_uom: p.base_uom || "",
+    similar_code: p.similar_code || "",
   };
 }
 

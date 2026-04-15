@@ -38,6 +38,9 @@ Deno.serve(async (req) => {
       description: p.description || "",
       image_url: p.image_url || p.image || "",
       is_active: p.is_active !== undefined ? p.is_active : true,
+      alt_code: p.alt_code || "",
+      base_uom: p.base_uom || p.uom || "",
+      similar_code: p.similar_code || "",
     }));
 
     const validProducts = upsertData.filter((p: any) => p.sku_code);
@@ -52,13 +55,14 @@ Deno.serve(async (req) => {
     const inserted = [];
     for (const p of validProducts) {
       const rows = await sql`
-        INSERT INTO products (sku_code, name, category, subcategory, tags, color, size, material, price, stock_level, description, image_url, is_active)
-        VALUES (${p.sku_code}, ${p.name}, ${p.category}, ${p.subcategory}, ${p.tags}, ${p.color}, ${p.size}, ${p.material}, ${p.price}, ${p.stock_level}, ${p.description}, ${p.image_url}, ${p.is_active})
+        INSERT INTO products (sku_code, name, category, subcategory, tags, color, size, material, price, stock_level, description, image_url, is_active, alt_code, base_uom, similar_code)
+        VALUES (${p.sku_code}, ${p.name}, ${p.category}, ${p.subcategory}, ${p.tags}, ${p.color}, ${p.size}, ${p.material}, ${p.price}, ${p.stock_level}, ${p.description}, ${p.image_url}, ${p.is_active}, ${p.alt_code}, ${p.base_uom}, ${p.similar_code})
         ON CONFLICT (sku_code) DO UPDATE SET
           name = EXCLUDED.name, category = EXCLUDED.category, subcategory = EXCLUDED.subcategory,
           tags = EXCLUDED.tags, color = EXCLUDED.color, size = EXCLUDED.size, material = EXCLUDED.material,
           price = EXCLUDED.price, stock_level = EXCLUDED.stock_level, description = EXCLUDED.description,
-          image_url = EXCLUDED.image_url, is_active = EXCLUDED.is_active, updated_at = now()
+          image_url = EXCLUDED.image_url, is_active = EXCLUDED.is_active, alt_code = EXCLUDED.alt_code,
+          base_uom = EXCLUDED.base_uom, similar_code = EXCLUDED.similar_code, updated_at = now()
         RETURNING *
       `;
       inserted.push(...rows);

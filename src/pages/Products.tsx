@@ -7,6 +7,7 @@ import { toast } from "sonner";
 interface Product {
   id: string;
   sku_code: string;
+  alt_code: string;
   name: string;
   category: string;
   subcategory: string;
@@ -19,10 +20,13 @@ interface Product {
   description: string;
   image_url: string;
   is_active: boolean;
+  base_uom: string;
+  similar_code: string;
 }
 
 const emptyProduct: Omit<Product, "id"> = {
   sku_code: "",
+  alt_code: "",
   name: "",
   category: "",
   subcategory: "",
@@ -35,6 +39,8 @@ const emptyProduct: Omit<Product, "id"> = {
   description: "",
   image_url: "",
   is_active: true,
+  base_uom: "",
+  similar_code: "",
 };
 
 export default function Products() {
@@ -157,13 +163,14 @@ export default function Products() {
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
                 <th className="px-4 py-3 font-medium">SKU</th>
+                <th className="px-4 py-3 font-medium">Alt Code</th>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium">Color</th>
                 <th className="px-4 py-3 font-medium">Size</th>
-                <th className="px-4 py-3 font-medium">Material</th>
+                <th className="px-4 py-3 font-medium">UOM</th>
                 <th className="px-4 py-3 font-medium text-right">Price</th>
                 <th className="px-4 py-3 font-medium text-right">Stock</th>
+                <th className="px-4 py-3 font-medium">Similar</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium"></th>
               </tr>
@@ -172,13 +179,14 @@ export default function Products() {
               {filtered.map((p) => (
                 <tr key={p.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs">{p.sku_code}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{p.alt_code}</td>
                   <td className="px-4 py-3 font-medium">{p.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{p.category}{p.subcategory ? ` / ${p.subcategory}` : ""}</td>
-                  <td className="px-4 py-3">{p.color}</td>
                   <td className="px-4 py-3">{p.size}</td>
-                  <td className="px-4 py-3">{p.material}</td>
+                  <td className="px-4 py-3">{p.base_uom}</td>
                   <td className="px-4 py-3 text-right">{Number(p.price) > 0 ? `$${Number(p.price).toFixed(2)}` : "—"}</td>
                   <td className="px-4 py-3 text-right">{p.stock_level}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{p.similar_code || "—"}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${p.is_active ? "bg-sentiment-positive/10 text-sentiment-positive" : "bg-muted text-muted-foreground"}`}>
                       {p.is_active ? "Active" : "Inactive"}
@@ -193,7 +201,7 @@ export default function Products() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">No products found</td></tr>
+                <tr><td colSpan={11} className="px-4 py-12 text-center text-muted-foreground">No products found</td></tr>
               )}
             </tbody>
           </table>
@@ -213,6 +221,10 @@ export default function Products() {
                 <input value={form.sku_code} onChange={(e) => setForm({ ...form, sku_code: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Alt Code</label>
+                <input value={form.alt_code} onChange={(e) => setForm({ ...form, alt_code: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Name *</label>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
@@ -221,20 +233,20 @@ export default function Products() {
                 <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Subcategory</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Subcategory / Collection</label>
                 <input value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Color</label>
-                <input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Size</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Size / Thickness</label>
                 <input value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Material</label>
-                <input value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Base UOM</label>
+                <input value={form.base_uom} onChange={(e) => setForm({ ...form, base_uom: e.target.value })} placeholder="e.g. PC, SET" className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Similar Code</label>
+                <input value={form.similar_code} onChange={(e) => setForm({ ...form, similar_code: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Price ($)</label>
@@ -245,16 +257,24 @@ export default function Products() {
                 <input type="number" value={form.stock_level} onChange={(e) => setForm({ ...form, stock_level: Number(e.target.value) })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Color</label>
+                <input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Material</label>
+                <input value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Tags (comma-separated)</label>
                 <input value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="e.g. industrial, heavy-duty" className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
-              </div>
-              <div className="col-span-2">
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Description</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20 resize-y" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Image URL</label>
                 <input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Description</label>
+                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 text-sm rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20 resize-y" />
               </div>
               <div className="flex items-end">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
