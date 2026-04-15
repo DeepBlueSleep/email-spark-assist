@@ -41,24 +41,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Get recommended SKU product details
-      const normalizeSkuCode = (sku: unknown) => String(sku ?? "").trim().toUpperCase();
-      const allSkuCodes: string[] = [];
-      for (const e of emails) {
-        const refs = e.recommended_sku_codes as any[];
-        if (refs && Array.isArray(refs)) {
-          for (const r of refs) {
-            const normalized = normalizeSkuCode(r?.sku_code);
-            if (normalized) allSkuCodes.push(normalized);
-          }
-        }
-      }
-      const uniqueSkuCodes = [...new Set(allSkuCodes)];
-
-      let products: any[] = [];
-      if (uniqueSkuCodes.length > 0) {
-        products = await sql`SELECT * FROM products WHERE UPPER(TRIM(sku_code)) = ANY(${uniqueSkuCodes})`;
-      }
+      // Product lookups are now handled client-side via productService
+      const products: any[] = [];
 
       // Fetch customers for mapping
       const customerIds = [...new Set(emails.map((e: any) => e.customer_id).filter(Boolean))];
