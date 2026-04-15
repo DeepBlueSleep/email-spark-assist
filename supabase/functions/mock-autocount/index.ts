@@ -26,6 +26,13 @@ interface ACCustomer {
   CreditTerms: string;
   OutstandingBalance: number;
   IsActive: boolean;
+  Discount?: string;
+  Agent?: string;
+  Address1?: string;
+  Address2?: string;
+  Address3?: string;
+  Fax?: string;
+  IsBoxx: boolean;
 }
 
 interface ACStockItem {
@@ -71,41 +78,24 @@ interface ACPayment {
 // ─── Seed data ──────────────────────────────────────────────────────────────
 
 const customers: Map<string, ACCustomer> = new Map([
-  ["300-C001", {
-    AccNo: "300-C001",
-    CompanyName: "ABC Trading Sdn Bhd",
-    Contact: "Ahmad bin Ibrahim",
-    Phone1: "+60-12-345-6789",
-    EmailAddress: "ahmad@abctrading.com.my",
-    CreditLimit: 50000,
-    CreditTerms: "Net 30",
-    OutstandingBalance: 12450.80,
-    IsActive: true,
-  }],
-  ["300-C002", {
-    AccNo: "300-C002",
-    CompanyName: "XYZ Interiors Sdn Bhd",
-    Contact: "Siti Nurhaliza",
-    Phone1: "+60-11-987-6543",
-    EmailAddress: "siti@xyzinteriors.com.my",
-    CreditLimit: 30000,
-    CreditTerms: "Net 14",
-    OutstandingBalance: 28500.00,
-    IsActive: true,
-  }],
-  ["300-C003", {
-    AccNo: "300-C003",
-    CompanyName: "Quick Renovations",
-    Contact: "Lee Wei Ming",
-    Phone1: "+60-16-555-1234",
-    EmailAddress: "weiming@quickreno.com",
-    CreditLimit: 20000,
-    CreditTerms: "COD",
-    OutstandingBalance: 0,
-    IsActive: true,
-  }],
+  ["A169", { AccNo: "A169", CompanyName: "A+A Carpenter Workshop", Contact: "Ah Shan", Phone1: "8180 9383", EmailAddress: "dcarpenter@singnet.com.sg", CreditLimit: 5000, CreditTerms: "30 days", OutstandingBalance: 0, IsActive: true, Discount: "15%", Agent: "EL", Address1: "280 Woodlands Ind. Park E5", Address2: "#05-03 Harvest @ Woodlands", Address3: "Singapore 757322", IsBoxx: false }],
+  ["B092", { AccNo: "B092", CompanyName: "Bold Construction Pte Ltd", Contact: "Ferdinand Foong", Phone1: "6908 8956", EmailAddress: "", CreditLimit: 5000, CreditTerms: "30 days", OutstandingBalance: 0, IsActive: true, Discount: "20%", Agent: "AW", Address1: "68 Kaki Bukit Ave 6", Address2: "#02-13/14 Ark@KB", Address3: "Singapore 417896", IsBoxx: false }],
+  ["I100", { AccNo: "I100", CompanyName: "Interior Times Design Pte Ltd", Contact: "Bryan Lim", Phone1: "9695 5566", EmailAddress: "finance.interiortimes@gmail.com", CreditLimit: 8000, CreditTerms: "30 days", OutstandingBalance: 0, IsActive: true, Discount: "30%", Agent: "RL", Address1: "3 Ang Mo Kio St 62", Address2: "#01-08 Link @ AMK", Address3: "Singapore 569139", IsBoxx: false }],
+  ["I121", { AccNo: "I121", CompanyName: "Intheory Design Pte Ltd", Contact: "Ryan Linardy", Phone1: "9105 5968", EmailAddress: "", CreditLimit: 1500, CreditTerms: "30 days", OutstandingBalance: 0, IsActive: true, Discount: "12%", Agent: "WM", Address1: "114 Lavender Street", Address2: "#01-65 CT Hub 2", Address3: "Singapore 338729", IsBoxx: false }],
+  ["M104", { AccNo: "M104", CompanyName: "Mix Suppliers & Enterprise", Contact: "Ah Yen", Phone1: "012-7007 069", EmailAddress: "tiongnamtrdg@gmail.com", CreditLimit: 90000, CreditTerms: "30 days", OutstandingBalance: 0, IsActive: true, Discount: "28%", Agent: "ML", Address1: "No. 38 Jalan Beladau 20", Address2: "Taman Putri Wangsa", Address3: "81800 Ulu Tiram", Fax: "07-361 2234", IsBoxx: false }],
+  ["BOXX - A014", { AccNo: "BOXX - A014", CompanyName: "BOXX - AG 66 Home Design", Contact: "Henry", Phone1: "9022 8366", EmailAddress: "", CreditLimit: 2000, CreditTerms: "30 days", OutstandingBalance: 0, IsActive: true, Discount: "40%+25% (CN)", Agent: "JT", Address1: "Blk 108 Hougang Ave 1", Address2: "#01-1269", Address3: "Singapore 530108", IsBoxx: true }],
+  ["BOXX - C010", { AccNo: "BOXX - C010", CompanyName: "BOXX - Ciseern By Designer Furnishings Pte Ltd", Contact: "Dean", Phone1: "6552 0078", EmailAddress: "", CreditLimit: 20000, CreditTerms: "30 days", OutstandingBalance: 0, IsActive: true, Discount: "45%+25% (CN)", Agent: "JT", Address1: "1 Tampines North Drive 1", Address2: "#01-37 T-Space", Address3: "Singapore 528559", Fax: "6552 8160", IsBoxx: true }],
+  ["BOXX - D020", { AccNo: "BOXX - D020", CompanyName: "BOXX - D&I Design Interior Pte Ltd", Contact: "Darren", Phone1: "8838 4363", EmailAddress: "sale@dni.com.sg", CreditLimit: 3000, CreditTerms: "30 days", OutstandingBalance: 0, IsActive: true, Discount: "40%", Agent: "JT", Address1: "101 Woodlands Ave 12", Address2: "#02-18 Polaris@Woodlands", Address3: "Singapore 737719", IsBoxx: true }],
+  ["BOXX - D032", { AccNo: "BOXX - D032", CompanyName: "BOXX - D&I Design Studio Pte Ltd", Contact: "Darren", Phone1: "8838 4363", EmailAddress: "", CreditLimit: 3000, CreditTerms: "30 days", OutstandingBalance: 0, IsActive: true, Discount: "40%", Agent: "JT", Address1: "101 Woodlands Ave 12", Address2: "#02-18 Polaris@Woodlands", Address3: "Singapore 737719", IsBoxx: true }],
+  ["A192", { AccNo: "A192", CompanyName: "A1 Family Design Pte Ltd", Contact: "Simon", Phone1: "", EmailAddress: "", CreditLimit: 2000, CreditTerms: "C.O.D.", OutstandingBalance: 0, IsActive: true, Discount: "15%", Agent: "AW", Address1: "113 Eunos Ave 3", Address2: "#02-09", Address3: "Singapore 409838", IsBoxx: false }],
+  ["A091", { AccNo: "A091", CompanyName: "AC Furnishing & Construction Pte Ltd", Contact: "Richard Lee", Phone1: "6366 5335", EmailAddress: "", CreditLimit: 3000, CreditTerms: "C.O.D.", OutstandingBalance: 0, IsActive: true, Discount: "10%", Agent: "JW2", Address1: "61 Woodlands Ind Pk E9", Address2: "#06-03 E9 Premium", Address3: "Singapore 757047", Fax: "6734 0596", IsBoxx: false }],
+  ["BOXX - P006", { AccNo: "BOXX - P006", CompanyName: "BOXX - P & K Interior Decoration Pte Ltd", Contact: "K K Soh", Phone1: "6635 8080", EmailAddress: "", CreditLimit: 2000, CreditTerms: "C.O.D.", OutstandingBalance: 0, IsActive: true, Discount: "30%", Agent: "JT", Address1: "No 71 Woodland Ave 10", Address2: "#08-07 Woodlands Ind Xchange", Address3: "Singapore 737743", IsBoxx: true }],
+  ["BOXX - P011", { AccNo: "BOXX - P011", CompanyName: "BOXX - Pomex Pte Ltd", Contact: "V Prasath", Phone1: "6747 1505", EmailAddress: "", CreditLimit: 1200, CreditTerms: "C.O.D.", OutstandingBalance: 0, IsActive: true, Discount: "25%", Agent: "JW", Address1: "No.1 Kaki Bukit Ave 3", Address2: "#10-23 KB-1", Address3: "Singapore 416087", Fax: "6481 3975", IsBoxx: true }],
+  ["S238", { AccNo: "S238", CompanyName: "Supreme Houzz Design Studio Pte Ltd", Contact: "James", Phone1: "9092 7745", EmailAddress: "", CreditLimit: 0, CreditTerms: "F.O.C", OutstandingBalance: 0, IsActive: true, Agent: "ML", Address1: "62 Ubi Rd 1", Address2: "#03-14 Oxlay Bizhub One", Address3: "Singapore 408734", IsBoxx: false }],
+  ["T118", { AccNo: "T118", CompanyName: "T&T Design Artisan Pte Ltd", Contact: "Desmond", Phone1: "", EmailAddress: "", CreditLimit: 0, CreditTerms: "F.O.C", OutstandingBalance: 0, IsActive: true, Agent: "WM", Address1: "No 21 Woodlands Close", Address2: "#01-28 Primz Bizhub", IsBoxx: false }],
+  ["BOXX - S045", { AccNo: "BOXX - S045", CompanyName: "BOXX - Styleworkz Interior Pte Ltd", Contact: "Jason Low", Phone1: "8111 4815", EmailAddress: "", CreditLimit: 0, CreditTerms: "F.O.C", OutstandingBalance: 0, IsActive: true, Agent: "JT", Address1: "23A Tannery Lane", Address2: "Level 2", Address3: "Singapore 347785", IsBoxx: true }],
+  ["BOXX - T005", { AccNo: "BOXX - T005", CompanyName: "BOXX - T&T Design Artisan Pte Ltd", Contact: "Desmond", Phone1: "9690 1208", EmailAddress: "", CreditLimit: 0, CreditTerms: "F.O.C", OutstandingBalance: 0, IsActive: true, Agent: "WM", Address1: "No 21 Woodlands Close", Address2: "#01-28 Primz Bizhub", Address3: "Singapore 737854", IsBoxx: true }],
 ]);
-
 const stockItems: Map<string, ACStockItem> = new Map([
   ["LAM-001", { ItemCode: "LAM-001", Description: "Premium Oak Laminate 8mm", ItemGroup: "Laminate", BaseUOM: "sqft", UnitPrice: 4.50, QtyOnHand: 15000, IsActive: true }],
   ["LAM-002", { ItemCode: "LAM-002", Description: "Dark Walnut Laminate 12mm", ItemGroup: "Laminate", BaseUOM: "sqft", UnitPrice: 6.80, QtyOnHand: 8500, IsActive: true }],
@@ -207,6 +197,13 @@ Deno.serve(async (req) => {
           CreditTerms: body.CreditTerms || "Net 30",
           OutstandingBalance: body.OutstandingBalance ?? 0,
           IsActive: body.IsActive ?? true,
+          Discount: body.Discount,
+          Agent: body.Agent,
+          Address1: body.Address1,
+          Address2: body.Address2,
+          Address3: body.Address3,
+          Fax: body.Fax,
+          IsBoxx: accNo.startsWith("BOXX - "),
         };
         customers.set(accNo, customer);
         return json({ success: true, customer });

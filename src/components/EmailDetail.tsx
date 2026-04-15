@@ -7,6 +7,7 @@ import type { DraftOrderItem } from "./DraftOrder";
 import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { Badge } from "./ui/badge";
 import { User, Clock, Paperclip } from "lucide-react";
 
 interface EmailDetailProps {
@@ -59,6 +60,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const hasReplyDraft = replyDraft.trim().length > 0;
   const hasAnyEnrichment = email.sentiment_confidence > 0 || email.intent_confidence > 0 || hasOrderData || hasDraftOrder || hasReplyDraft;
   const hasAttachments = email.attachments && email.attachments.length > 0;
+  const isBoxx = email.customer?.is_boxx || email.customer_name.startsWith("BOXX -");
 
   return (
     <div className="flex-1 flex min-h-0">
@@ -67,7 +69,12 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
         <div className="bg-card rounded-xl shadow-card p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold">{email.subject}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">{email.subject}</h2>
+                {isBoxx && (
+                  <Badge className="bg-amber-500/15 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0">BOXX</Badge>
+                )}
+              </div>
               <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" />{email.customer_name}</span>
                 <span className="text-xs">{email.email}</span>

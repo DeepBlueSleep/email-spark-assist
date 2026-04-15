@@ -21,6 +21,18 @@ export interface ACCustomer {
   CreditTerms: string;
   OutstandingBalance: number;
   IsActive: boolean;
+  Discount?: string;
+  Agent?: string;
+  Address1?: string;
+  Address2?: string;
+  Address3?: string;
+  Fax?: string;
+  Attention?: string;
+  DeliveryAddress1?: string;
+  DeliveryAddress2?: string;
+  DeliveryAddress3?: string;
+  DeliveryAddress4?: string;
+  IsBoxx?: boolean;
 }
 
 export interface ACStockItem {
