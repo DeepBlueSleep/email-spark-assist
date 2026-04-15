@@ -48,39 +48,78 @@ export type Database = {
       }
       customers: {
         Row: {
+          address_1: string | null
+          address_2: string | null
+          address_3: string | null
+          agent: string | null
+          attention: string | null
+          code: string | null
           company: string | null
           created_at: string
           credit_limit: number | null
           credit_terms: string | null
           credit_used: number | null
+          delivery_address_1: string | null
+          delivery_address_2: string | null
+          delivery_address_3: string | null
+          delivery_address_4: string | null
+          discount: string | null
           email: string
+          fax: string | null
           id: string
+          is_boxx: boolean
           name: string
           notes: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
+          address_1?: string | null
+          address_2?: string | null
+          address_3?: string | null
+          agent?: string | null
+          attention?: string | null
+          code?: string | null
           company?: string | null
           created_at?: string
           credit_limit?: number | null
           credit_terms?: string | null
           credit_used?: number | null
+          delivery_address_1?: string | null
+          delivery_address_2?: string | null
+          delivery_address_3?: string | null
+          delivery_address_4?: string | null
+          discount?: string | null
           email: string
+          fax?: string | null
           id?: string
+          is_boxx?: boolean
           name?: string
           notes?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
+          address_1?: string | null
+          address_2?: string | null
+          address_3?: string | null
+          agent?: string | null
+          attention?: string | null
+          code?: string | null
           company?: string | null
           created_at?: string
           credit_limit?: number | null
           credit_terms?: string | null
           credit_used?: number | null
+          delivery_address_1?: string | null
+          delivery_address_2?: string | null
+          delivery_address_3?: string | null
+          delivery_address_4?: string | null
+          discount?: string | null
           email?: string
+          fax?: string | null
           id?: string
+          is_boxx?: boolean
           name?: string
           notes?: string | null
           phone?: string | null
