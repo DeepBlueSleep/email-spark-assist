@@ -1,51 +1,35 @@
+## Plan: Keep Sample Data as Static Fallback, Prepare for External API Swap
 
+### Approach
 
-## Plan: Add 3 New Product Columns, Clear Old Data, Seed Sample SKUs
+Instead of removing the product infrastructure, refactor it into a **product service abstraction layer** that currently returns hardcoded sample data but can be swapped to an external API with minimal changes.
 
 ### What changes
 
-1. **Add 3 columns to `products` table in NeonDB** via the api-products edge function (or a dedicated SQL call):
-   - `alt_code` (text) — maps from "Desc 2" column
-   - `base_uom` (text) — Unit of Measure (PC, SET, etc.)
-   - `similar_code` (text) — similar/replacement SKU reference
+1. **Create `src/lib/productService.ts**` — a single module that exports product query functions (`searchProducts`, `getProductBySku`, `getAllProducts`). Initially these return data from a hardcoded array of the 18 sample SKUs. When the external API is ready, only this file needs to change.
+2. **Update `src/components/DraftOrder.tsx**` — replace the `invokeFunction("api-products", ...)` call with `searchProducts()` from the new service module.
+3. **Update `src/hooks/useEmails.ts**` — replace the product lookup logic (lines 27-31 that use `productsArr` from api-emails) with a call to the product service.
+4. **Update `supabase/functions/api-emails/index.ts**` — remove the product query block (lines 44-61) that fetches from the NeonDB `products` table. Return `products: []` in the response — the frontend will handle product lookups via the service layer instead.
+5. **Keep `src/pages/Products.tsx` and `/products` route** as a read-only product catalog view, but source data from the product service instead of `api-products`. Remove create/edit/delete functionality (since products come from an external source).
+6. **Delete edge functions no longer needed**:
+  - `supabase/functions/api-products/index.ts` — internal CRUD
+  - `supabase/functions/webhook-products/index.ts` — bulk upsert
+  - `supabase/functions/get-products/index.ts` — filtered read
+  - `supabase/functions/_shared/vectorSync.ts` — embeddings sync
+7. **NeonDB `products` table** — leave it for now (no harm), or drop it. Data will come from the service layer.
+8. **Update memory files** to reflect the new architecture.
+9. Remove the`src/pages/Products.tsx` **and** `/products` **route and page**
 
-   SQL to run against NeonDB:
-   ```sql
-   ALTER TABLE products ADD COLUMN IF NOT EXISTS alt_code TEXT DEFAULT '';
-   ALTER TABLE products ADD COLUMN IF NOT EXISTS base_uom TEXT DEFAULT '';
-   ALTER TABLE products ADD COLUMN IF NOT EXISTS similar_code TEXT DEFAULT '';
-   ```
+### Sample data location
 
-2. **Delete all existing products** from NeonDB.
+The 18 SKU records you provided will live as a typed array in `src/lib/productService.ts`. The service functions will filter/search this array in-memory.
 
-3. **Seed 19 sample SKU records** with the data you provided, mapping:
-   - `Item Code` → `sku_code`
-   - `Desc 2` → `alt_code`
-   - `Description` → `description`
-   - `Total Bal. Qty` → `stock_level`
-   - `Base UOM` → `base_uom`
-   - `Item Name` → `name`
-   - `Item Group` → `category`
-   - `Thickness` → `size`
-   - `Retail Price` → `price`
-   - `Similar Code` → `similar_code`
-   - `Discon` → `is_active` (false if "Discon" text present, true otherwise)
-   - `Collections` → `subcategory`
+### Swap-over prep
 
-4. **Update edge functions** to include the 3 new columns:
-   - `api-products/index.ts` — POST insert, PATCH update, GET queries
-   - `webhook-products/index.ts` — upsert logic
-   - `get-products/index.ts` — no change needed (uses `SELECT *`)
+The service module will have clear comments marking where to replace static data with `fetch()` calls to the external API. The `Product` interface stays the same.
 
-5. **Update frontend** `src/pages/Products.tsx`:
-   - Add `alt_code`, `base_uom`, `similar_code` to the `Product` interface and form
-   - Display in the product list/table
+### Files affected
 
-6. **Update vector sync** if it references product fields (will check `_shared/vectorSync.ts`).
-
-### Steps to execute
-1. Create a small edge function or use curl to run the ALTER TABLE + DELETE + INSERT statements against NeonDB
-2. Update `api-products/index.ts` POST and PATCH to include new columns
-3. Update `webhook-products/index.ts` upsert to include new columns
-4. Update `Products.tsx` interface, form, and display table
-
+- **Create**: `src/lib/productService.ts`
+- **Edit**: `src/components/DraftOrder.tsx`, `src/hooks/useEmails.ts`, `supabase/functions/api-emails/index.ts`
+- **Delete**: `supabase/functions/api-products/index.ts`, `supabase/functions/webhook-products/index.ts`, `supabase/functions/get-products/index.ts`, `supabase/functions/_shared/vectorSync.ts, src/pages/Products.tsx`
