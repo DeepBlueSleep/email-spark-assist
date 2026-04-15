@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { invokeFunction } from "@/lib/api";
 import { Email, Customer, Status, Sentiment, Intent, ExtractedOrderItem, RecommendedSKU, AttachmentMeta, mockEmails } from "@/data/mockData";
+import { getProductsBySkuCodes } from "@/lib/productService";
 
 interface SkuRef {
   sku_code: string;
@@ -18,12 +19,25 @@ export function useEmails() {
 
       const dbEmails = data.emails || [];
       const orderItems = data.order_items || [];
-      const productsArr = data.products || [];
       const emailAttachments = data.email_attachments || [];
       const customersArr = data.customers || [];
 
       if (dbEmails.length > 0) {
         const normalizeSkuCode = (sku: unknown) => String(sku ?? "").trim().toUpperCase();
+
+        // Collect all referenced SKU codes across emails
+        const allSkuCodes: string[] = [];
+        for (const e of dbEmails) {
+          const refs = (e.recommended_sku_codes as SkuRef[] | null) || [];
+          for (const ref of refs) {
+            const code = String(ref.sku_code ?? "").trim().toUpperCase();
+            if (code) allSkuCodes.push(code);
+          }
+        }
+        const uniqueSkuCodes = [...new Set(allSkuCodes)];
+
+        // Look up products from the product service (static data / future external API)
+        const productsArr = uniqueSkuCodes.length > 0 ? await getProductsBySkuCodes(uniqueSkuCodes) : [];
         const productsMap: Record<string, any> = {};
         for (const p of productsArr) {
           const normalized = normalizeSkuCode(p.sku_code);

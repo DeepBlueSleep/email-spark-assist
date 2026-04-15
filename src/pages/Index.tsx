@@ -3,8 +3,7 @@ import { useEmails } from "@/hooks/useEmails";
 import { useStatuses } from "@/hooks/useStatuses";
 import { EmailList } from "@/components/EmailList";
 import { EmailDetail } from "@/components/EmailDetail";
-import { Bot, Inbox, Wifi, WifiOff, Package } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Bot, Inbox, Wifi, WifiOff } from "lucide-react";
 
 const Index = () => {
   const { emails, isLoading, usingLiveData, updateStatus } = useEmails();
@@ -26,9 +25,6 @@ const Index = () => {
         </div>
         <span className="ml-4 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">MVP</span>
         <div className="ml-auto flex items-center gap-4">
-          <Link to="/products" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-            <Package className="w-3.5 h-3.5" /> Products
-          </Link>
           {usingLiveData ? (
             <span className="flex items-center gap-1 text-xs text-green-600"><Wifi className="w-3.5 h-3.5" />Live Data</span>
           ) : (

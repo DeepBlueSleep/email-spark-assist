@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { RecommendedSKU, ExtractedOrderItem } from "@/data/mockData";
 import { Plus, Trash2, ClipboardList, Package, Undo2, Search, X, AlertTriangle, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { invokeFunction } from "@/lib/api";
+import { searchProducts as searchProductService } from "@/lib/productService";
 
 // DraftOrderItem type is exported from the interface section below
 
@@ -102,8 +102,17 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
     const timeout = setTimeout(async () => {
       setSearching(true);
       try {
-        const data = await invokeFunction("api-products", { params: { search: searchQuery } });
-        setSearchResults((data.products || []).slice(0, 8));
+        const results = await searchProductService(searchQuery);
+        setSearchResults(results.slice(0, 8).map((p) => ({
+          id: p.sku_code,
+          sku_code: p.sku_code,
+          name: p.name,
+          category: p.category,
+          color: p.color || null,
+          size: p.size || null,
+          price: p.price,
+          stock_level: p.stock_level,
+        })));
       } catch {
         setSearchResults([]);
       }
