@@ -178,6 +178,8 @@ export type Database = {
           id: string
           intent: string | null
           intent_confidence: number | null
+          is_archived: boolean
+          is_read: boolean
           is_relevant: boolean
           recommended_sku_codes: Json | null
           relevance_reason: string | null
@@ -200,6 +202,8 @@ export type Database = {
           id?: string
           intent?: string | null
           intent_confidence?: number | null
+          is_archived?: boolean
+          is_read?: boolean
           is_relevant?: boolean
           recommended_sku_codes?: Json | null
           relevance_reason?: string | null
@@ -222,6 +226,8 @@ export type Database = {
           id?: string
           intent?: string | null
           intent_confidence?: number | null
+          is_archived?: boolean
+          is_read?: boolean
           is_relevant?: boolean
           recommended_sku_codes?: Json | null
           relevance_reason?: string | null
