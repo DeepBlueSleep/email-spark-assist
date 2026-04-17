@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useEmails } from "@/hooks/useEmails";
 import { useStatuses } from "@/hooks/useStatuses";
 import { EmailList } from "@/components/EmailList";
@@ -132,7 +132,7 @@ const Index = () => {
             <EmailList
               emails={visibleEmails}
               selectedId={effectiveSelectedId}
-              onSelect={(e) => setSelectedId(e.id)}
+              onSelect={handleSelect}
               statuses={statuses}
               onArchive={tab === "other" ? undefined : handleArchive}
               title={tabConfig[tab].label}
