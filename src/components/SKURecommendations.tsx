@@ -84,7 +84,7 @@ export function SKURecommendations({ skus, orderItems, onAddToOrder, onReplace }
 
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
               <div>
-                {sku.price > 0 && <span className="text-sm font-semibold">{sku.price.toFixed(2)}</span>}
+                {sku.price > 0 && <span className="text-sm font-semibold">{sku.price > 0 && <span className="text-sm font-semibold">${sku.price.toFixed(2)}</span>}</span>}
                 <span className={cn("text-xs ml-2", sku.stock_level > 10 ? "text-sentiment-positive" : "text-sentiment-negative")}>
                   {sku.stock_level} in stock
                 </span>

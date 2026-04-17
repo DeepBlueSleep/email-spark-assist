@@ -318,13 +318,13 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
                 <span className="text-muted-foreground">
                   {item.name} <span className="font-mono">({item.sku_code})</span> × {item.quantity}
                 </span>
-                <span className="font-medium">{(item.price * item.quantity).toFixed(2)}</span>
+                <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
               </div>
             ))}
             <div className="border-t border-border pt-2 mt-2 flex items-center justify-between">
               <span className="text-sm font-semibold">Total</span>
               <span className="text-sm font-bold text-primary">
-                {items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}
+                ${items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}
               </span>
             </div>
           </div>
