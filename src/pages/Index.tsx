@@ -47,18 +47,19 @@ const Index = () => {
   };
 
   const visibleEmails = tabConfig[tab].emails;
+  // Only honor explicit user selection — do NOT auto-fallback, otherwise auto-mark-read
+  // cascades through the Unread list as marked items leave the visible set.
   const effectiveSelectedId =
-    (selectedId && visibleEmails.some((e) => e.id === selectedId) ? selectedId : null) ||
-    visibleEmails[0]?.id ||
-    null;
-  const selectedEmail = visibleEmails.find((e) => e.id === effectiveSelectedId);
+    selectedId && emails.some((e) => e.id === selectedId) ? selectedId : null;
+  const selectedEmail = emails.find((e) => e.id === effectiveSelectedId);
 
-  // Auto mark-as-read when an unread email is opened
-  useEffect(() => {
-    if (selectedEmail && !selectedEmail.is_read && selectedEmail.is_relevant !== false) {
-      markRead(selectedEmail.id, true);
+  // Auto mark-as-read only on explicit user click.
+  const handleSelect = (email: Email) => {
+    setSelectedId(email.id);
+    if (!email.is_read && email.is_relevant !== false) {
+      markRead(email.id, true);
     }
-  }, [selectedEmail?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
   const handleArchive = (email: Email, archive: boolean) => {
     setArchived(email.id, archive);
