@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Email, Status } from "@/data/mockData";
 import type { DraftOrderItem } from "./DraftOrder";
-import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck, Ban } from "lucide-react";
+import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck, Ban, UserPlus } from "lucide-react";
 import { invokeFunction } from "@/lib/api";
 import { pushApprovedOrder, pushRequestInfo, pushEscalation } from "@/lib/autocount";
 import { toast } from "sonner";
@@ -16,12 +16,13 @@ interface ActionButtonsProps {
 }
 
 interface CreditCheckResult {
-  status: "ok" | "warning" | "exceeded";
+  status: "ok" | "warning" | "exceeded" | "unknown";
   credit_limit: number;
   credit_used: number;
   credit_remaining: number;
   order_total: number;
   message: string;
+  customer_id?: string | null;
 }
 
 export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange, orderTotal = 0, draftOrderItems = [] }: ActionButtonsProps) {
@@ -52,8 +53,8 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         await new Promise((r) => setTimeout(r, 600));
 
         if (customer) {
-          const limit = customer.credit_limit || 0;
-          const used = customer.credit_used || 0;
+          const limit = Number(customer.credit_limit) || 0;
+          const used = Number(customer.credit_used) || 0;
           const remaining = limit - used;
           const newUsed = used + orderTotal;
 
@@ -68,9 +69,17 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
             message = `Credit warning: After this order, only $${(remaining - orderTotal).toFixed(2)} (${Math.round(((remaining - orderTotal) / limit) * 100)}%) of credit remains.`;
           }
 
-          setCreditCheck({ status, credit_limit: limit, credit_used: used, credit_remaining: remaining, order_total: orderTotal, message });
+          setCreditCheck({ status, credit_limit: limit, credit_used: used, credit_remaining: remaining, order_total: orderTotal, message, customer_id: customer.id });
         } else {
-          setCreditCheck({ status: "warning", credit_limit: 0, credit_used: 0, credit_remaining: 0, order_total: orderTotal, message: "No customer profile found — credit terms not verified." });
+          setCreditCheck({
+            status: "unknown",
+            credit_limit: 0,
+            credit_used: 0,
+            credit_remaining: 0,
+            order_total: orderTotal,
+            message: `No customer profile found for ${email.email}. Confirming will create a new customer record with this order ($${orderTotal.toFixed(2)}) charged against their account.`,
+            customer_id: null,
+          });
         }
       } catch {
         setCreditCheck({ status: "warning", credit_limit: 0, credit_used: 0, credit_remaining: 0, order_total: orderTotal, message: "Could not verify credit — proceeding at your discretion." });
@@ -86,10 +95,50 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     if (isCreditExceeded) return;
     setIsSending(true);
     try {
+      let resolvedCustomerId = email.customer_id || creditCheck?.customer_id || null;
+      let resolvedCustomerCode = email.customer?.code || null;
+
+      // If no customer mapped, create one now and charge the order against their fresh account
+      if (creditCheck?.status === "unknown") {
+        try {
+          const created = await invokeFunction("api-customers", {
+            method: "POST",
+            body: {
+              name: email.customer_name || "Unknown",
+              email: email.email,
+              credit_limit: 0,
+              credit_used: orderTotal,
+              credit_terms: "Net 30",
+              notes: `Auto-created from email approval on ${new Date().toISOString().slice(0, 10)}`,
+            },
+          });
+          resolvedCustomerId = created.customer?.id || null;
+          resolvedCustomerCode = created.customer?.code || null;
+          // Link the email to the new customer record
+          if (resolvedCustomerId) {
+            await invokeFunction("api-emails", {
+              method: "PATCH",
+              body: { id: email.id, customer_id: resolvedCustomerId },
+            }).catch(() => {});
+          }
+          toast.success(`New customer profile created for ${email.customer_name}`);
+        } catch (custErr) {
+          console.warn("Failed to auto-create customer:", custErr);
+          toast.error("Could not create customer profile — order will still send");
+        }
+      } else if (resolvedCustomerId && orderTotal > 0) {
+        // Existing customer: increment credit_used by the new order amount
+        const newUsed = (Number(creditCheck?.credit_used) || 0) + orderTotal;
+        await invokeFunction("api-customers", {
+          method: "PATCH",
+          body: { id: resolvedCustomerId, credit_used: newUsed },
+        }).catch((e) => console.warn("Failed to update credit_used:", e));
+      }
+
       // Push approved order to Autocount (stub — endpoint not live yet)
       await pushApprovedOrder({
         email_id: email.id,
-        customer_code: email.customer?.code || null,
+        customer_code: resolvedCustomerCode,
         customer_name: email.customer_name,
         customer_email: email.email,
         subject: email.subject,
@@ -227,6 +276,8 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
                       ? "bg-destructive/10 border border-destructive/20"
                       : creditCheck.status === "warning"
                       ? "bg-amber-500/10 border border-amber-500/20"
+                      : creditCheck.status === "unknown"
+                      ? "bg-primary/10 border border-primary/20"
                       : "bg-sentiment-positive/10 border border-sentiment-positive/20"
                   }`}>
                     <div className="flex items-center gap-2 font-semibold">
@@ -234,6 +285,8 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
                         <><AlertTriangle className="w-4 h-4 text-destructive" /><span className="text-destructive">Credit Limit Exceeded</span></>
                       ) : creditCheck.status === "warning" ? (
                         <><AlertTriangle className="w-4 h-4 text-amber-600" /><span className="text-amber-600">Credit Warning</span></>
+                      ) : creditCheck.status === "unknown" ? (
+                        <><UserPlus className="w-4 h-4 text-primary" /><span className="text-primary">New Customer — Will Be Created</span></>
                       ) : (
                         <><ShieldCheck className="w-4 h-4 text-sentiment-positive" /><span className="text-sentiment-positive">Credit Check Passed</span></>
                       )}
