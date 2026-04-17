@@ -85,7 +85,7 @@ const Index = () => {
       </header>
 
       <div className="flex flex-1 min-h-0">
-        <nav className="w-52 shrink-0 bg-card border-r border-border flex flex-col py-3 gap-1 px-2">
+        <nav className="w-16 shrink-0 bg-card border-r border-border flex flex-col items-center py-3 gap-2">
           {(Object.keys(tabConfig) as InboxTab[]).map((key) => {
             const cfg = tabConfig[key];
             const Icon = cfg.icon;
@@ -96,25 +96,26 @@ const Index = () => {
                 key={key}
                 onClick={() => { setTab(key); setSelectedId(null); }}
                 className={cn(
-                  "w-full h-10 rounded-lg flex items-center gap-3 px-3 text-sm font-medium transition-colors",
+                  "w-12 h-12 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors relative",
                   active
                     ? key === "other"
                       ? "bg-muted-foreground/10 text-foreground"
                       : "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-accent"
                 )}
+                title={cfg.label}
               >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="flex-1 text-left">{cfg.label}</span>
+                <Icon className="w-4 h-4" />
+                <span>{cfg.label}</span>
                 {count > 0 && (
                   <span
                     className={cn(
-                      "text-[10px] rounded-full px-1.5 min-w-[18px] h-[16px] flex items-center justify-center font-semibold",
+                      "absolute top-1 right-1 text-[9px] rounded-full px-1 min-w-[14px] h-[14px] flex items-center justify-center font-semibold",
                       key === "other"
-                        ? "bg-muted-foreground/20 text-foreground"
+                        ? "bg-muted-foreground text-background"
                         : key === "unread"
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
+                          : "bg-muted-foreground/40 text-foreground"
                     )}
                   >
                     {count}
