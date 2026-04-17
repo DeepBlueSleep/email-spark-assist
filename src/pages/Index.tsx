@@ -1,36 +1,69 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useEmails } from "@/hooks/useEmails";
 import { useStatuses } from "@/hooks/useStatuses";
 import { EmailList } from "@/components/EmailList";
 import { EmailDetail } from "@/components/EmailDetail";
 import { IrrelevantEmailView } from "@/components/IrrelevantEmailView";
-import { Bot, Inbox, Wifi, WifiOff, Inbox as InboxIcon, Filter as FilterIcon } from "lucide-react";
+import {
+  Bot, Inbox, Wifi, WifiOff, Mail, MailOpen,
+  Archive, Filter as FilterIcon, ChevronLeft, ChevronRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Email } from "@/data/mockData";
 
-type InboxTab = "relevant" | "irrelevant";
+type InboxTab = "unread" | "read" | "archived" | "other";
 
 const Index = () => {
-  const { emails, isLoading, usingLiveData, updateStatus } = useEmails();
+  const { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived } = useEmails();
   const statuses = useStatuses();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<InboxTab>("relevant");
+  const [tab, setTab] = useState<InboxTab>("unread");
+  const [collapsed, setCollapsed] = useState(false);
 
-  const { relevantEmails, irrelevantEmails } = useMemo(() => {
-    const relevant: typeof emails = [];
-    const irrelevant: typeof emails = [];
+  const { unread, read, archived, other } = useMemo(() => {
+    const unread: Email[] = [];
+    const read: Email[] = [];
+    const archived: Email[] = [];
+    const other: Email[] = [];
     for (const e of emails) {
-      if (e.is_relevant === false) irrelevant.push(e);
-      else relevant.push(e);
+      if (e.is_relevant === false) {
+        other.push(e);
+      } else if (e.is_archived) {
+        archived.push(e);
+      } else if (e.is_read) {
+        read.push(e);
+      } else {
+        unread.push(e);
+      }
     }
-    return { relevantEmails: relevant, irrelevantEmails: irrelevant };
+    return { unread, read, archived, other };
   }, [emails]);
 
-  const visibleEmails = tab === "relevant" ? relevantEmails : irrelevantEmails;
+  const tabConfig: Record<InboxTab, { label: string; icon: typeof Inbox; emails: Email[]; emptyText: string }> = {
+    unread:   { label: "Unread",   icon: Mail,        emails: unread,   emptyText: "No unread emails" },
+    read:     { label: "Read",     icon: MailOpen,    emails: read,     emptyText: "No read emails" },
+    archived: { label: "Archived", icon: Archive,     emails: archived, emptyText: "No archived emails" },
+    other:    { label: "Other",    icon: FilterIcon,  emails: other,    emptyText: "No irrelevant emails" },
+  };
+
+  const visibleEmails = tabConfig[tab].emails;
   const effectiveSelectedId =
     (selectedId && visibleEmails.some((e) => e.id === selectedId) ? selectedId : null) ||
     visibleEmails[0]?.id ||
     null;
   const selectedEmail = visibleEmails.find((e) => e.id === effectiveSelectedId);
+
+  // Auto mark-as-read when an unread email is opened
+  useEffect(() => {
+    if (selectedEmail && !selectedEmail.is_read && selectedEmail.is_relevant !== false) {
+      markRead(selectedEmail.id, true);
+    }
+  }, [selectedEmail?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleArchive = (email: Email, archive: boolean) => {
+    setArchived(email.id, archive);
+    if (selectedId === email.id) setSelectedId(null);
+  };
 
   return (
     <div className="h-screen flex flex-col">
@@ -52,46 +85,83 @@ const Index = () => {
       </header>
 
       <div className="flex flex-1 min-h-0">
-        <nav className="w-16 shrink-0 bg-card border-r border-border flex flex-col items-center py-3 gap-2">
+        <nav
+          className={cn(
+            "shrink-0 bg-card border-r border-border flex flex-col py-3 gap-1 transition-all duration-200",
+            collapsed ? "w-16 items-center" : "w-52 items-stretch px-2"
+          )}
+        >
+          {(Object.keys(tabConfig) as InboxTab[]).map((key) => {
+            const cfg = tabConfig[key];
+            const Icon = cfg.icon;
+            const active = tab === key;
+            const count = cfg.emails.length;
+            return (
+              <button
+                key={key}
+                onClick={() => { setTab(key); setSelectedId(null); }}
+                className={cn(
+                  "rounded-lg transition-colors relative",
+                  collapsed
+                    ? "w-12 h-12 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium"
+                    : "w-full h-10 flex items-center gap-3 px-3 text-sm font-medium",
+                  active
+                    ? key === "other"
+                      ? "bg-muted-foreground/10 text-foreground"
+                      : "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-accent"
+                )}
+                title={collapsed ? cfg.label : undefined}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                {collapsed ? (
+                  <span>{cfg.label}</span>
+                ) : (
+                  <span className="flex-1 text-left">{cfg.label}</span>
+                )}
+                {count > 0 && (
+                  <span
+                    className={cn(
+                      "text-[10px] rounded-full px-1.5 min-w-[18px] h-[16px] flex items-center justify-center font-semibold",
+                      collapsed ? "absolute top-1 right-1 text-[9px] min-w-[14px] h-[14px] px-1" : "",
+                      key === "other"
+                        ? "bg-muted-foreground/20 text-foreground"
+                        : key === "unread"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
           <button
-            onClick={() => { setTab("relevant"); setSelectedId(null); }}
+            onClick={() => setCollapsed((c) => !c)}
             className={cn(
-              "w-12 h-12 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors relative",
-              tab === "relevant" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent"
+              "mt-auto rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors flex items-center justify-center",
+              collapsed ? "w-12 h-9" : "w-full h-9 gap-2 text-xs px-3"
             )}
-            title="Inbox"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <InboxIcon className="w-4 h-4" />
-            <span>Inbox</span>
-            {relevantEmails.length > 0 && (
-              <span className="absolute top-1 right-1 text-[9px] bg-primary text-primary-foreground rounded-full px-1 min-w-[14px] h-[14px] flex items-center justify-center">
-                {relevantEmails.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => { setTab("irrelevant"); setSelectedId(null); }}
-            className={cn(
-              "w-12 h-12 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors relative",
-              tab === "irrelevant" ? "bg-muted-foreground/10 text-foreground" : "text-muted-foreground hover:bg-accent"
-            )}
-            title="Irrelevant"
-          >
-            <FilterIcon className="w-4 h-4" />
-            <span>Other</span>
-            {irrelevantEmails.length > 0 && (
-              <span className="absolute top-1 right-1 text-[9px] bg-muted-foreground text-background rounded-full px-1 min-w-[14px] h-[14px] flex items-center justify-center">
-                {irrelevantEmails.length}
-              </span>
-            )}
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <><ChevronLeft className="w-4 h-4" /><span>Collapse</span></>}
           </button>
         </nav>
 
         <div className="w-[380px] shrink-0">
-          <EmailList emails={visibleEmails} selectedId={effectiveSelectedId} onSelect={(e) => setSelectedId(e.id)} statuses={statuses} />
+          <EmailList
+            emails={visibleEmails}
+            selectedId={effectiveSelectedId}
+            onSelect={(e) => setSelectedId(e.id)}
+            statuses={statuses}
+            onArchive={tab === "other" ? undefined : handleArchive}
+            title={tabConfig[tab].label}
+          />
         </div>
         {selectedEmail ? (
-          tab === "irrelevant" ? (
+          tab === "other" ? (
             <IrrelevantEmailView email={selectedEmail} />
           ) : (
             <EmailDetail email={selectedEmail} onStatusChange={updateStatus} />
@@ -100,7 +170,7 @@ const Index = () => {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <Inbox className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">{isLoading ? "Loading..." : tab === "irrelevant" ? "No irrelevant emails" : "Select an email to review"}</p>
+              <p className="text-sm">{isLoading ? "Loading..." : tabConfig[tab].emptyText}</p>
             </div>
           </div>
         )}

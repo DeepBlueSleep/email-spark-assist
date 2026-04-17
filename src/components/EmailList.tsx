@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Email, Sentiment, Intent, Status } from "@/data/mockData";
 import { StatusDef } from "@/hooks/useStatuses";
-import { Search, Filter, Mail, ChevronDown, Paperclip } from "lucide-react";
+import { Search, Filter, Mail, ChevronDown, Paperclip, Archive, ArchiveRestore } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatLabel } from "@/lib/utils";
 
@@ -34,9 +34,11 @@ interface EmailListProps {
   selectedId: string | null;
   onSelect: (email: Email) => void;
   statuses: StatusDef[];
+  onArchive?: (email: Email, archived: boolean) => void;
+  title?: string;
 }
 
-export function EmailList({ emails, selectedId, onSelect, statuses }: EmailListProps) {
+export function EmailList({ emails, selectedId, onSelect, statuses, onArchive, title = "Inbox" }: EmailListProps) {
   const [search, setSearch] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<Sentiment | "all">("all");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
@@ -66,7 +68,7 @@ export function EmailList({ emails, selectedId, onSelect, statuses }: EmailListP
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2 mb-3">
           <Mail className="w-5 h-5 text-primary" />
-          <h2 className="font-semibold text-foreground">Inbox</h2>
+          <h2 className="font-semibold text-foreground">{title}</h2>
           <span className="ml-auto text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{emails.length}</span>
         </div>
         <div className="relative">
@@ -116,35 +118,51 @@ export function EmailList({ emails, selectedId, onSelect, statuses }: EmailListP
       {/* Email items */}
       <div className="flex-1 overflow-y-auto">
         {filtered.map((email) => (
-          <button
+          <div
             key={email.id}
-            onClick={() => onSelect(email)}
             className={cn(
-              "w-full text-left p-4 border-b border-border hover:bg-accent/50 transition-colors",
+              "group relative border-b border-border hover:bg-accent/50 transition-colors",
               selectedId === email.id && "bg-primary/5 border-l-2 border-l-primary"
             )}
           >
-            <div className="flex items-start gap-2">
-              <span className={cn("w-2.5 h-2.5 rounded-full mt-1.5 shrink-0", sentimentDotClass[email.sentiment])} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-sm truncate">{email.customer_name}</span>
-                  <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(email.timestamp)}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <p className="text-sm font-medium text-foreground/80 truncate mt-0.5">{email.subject}</p>
-                  {email.attachments && email.attachments.length > 0 && (
-                    <Paperclip className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{email.body.slice(0, 120)}...</p>
-                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                  <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", intentColors[email.intent] || "bg-primary/10 text-primary")}>{formatLabel(email.intent)}</span>
-                  <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border", statusColorClass[email.status] || "bg-muted text-muted-foreground border-border")}>{formatLabel(email.status)}</span>
+            <button
+              onClick={() => onSelect(email)}
+              className="w-full text-left p-4"
+            >
+              <div className="flex items-start gap-2">
+                <span className={cn("w-2.5 h-2.5 rounded-full mt-1.5 shrink-0", sentimentDotClass[email.sentiment])} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={cn("text-sm truncate", !email.is_read ? "font-semibold" : "font-medium text-foreground/70")}>
+                      {!email.is_read && <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mr-1.5 align-middle" />}
+                      {email.customer_name}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(email.timestamp)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <p className={cn("text-sm truncate mt-0.5", !email.is_read ? "font-medium text-foreground" : "text-foreground/70")}>{email.subject}</p>
+                    {email.attachments && email.attachments.length > 0 && (
+                      <Paperclip className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{email.body.slice(0, 120)}...</p>
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", intentColors[email.intent] || "bg-primary/10 text-primary")}>{formatLabel(email.intent)}</span>
+                    <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border", statusColorClass[email.status] || "bg-muted text-muted-foreground border-border")}>{formatLabel(email.status)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </button>
+            </button>
+            {onArchive && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onArchive(email, !email.is_archived); }}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-background/80 transition-opacity"
+                title={email.is_archived ? "Unarchive" : "Archive"}
+              >
+                {email.is_archived ? <ArchiveRestore className="w-3.5 h-3.5 text-muted-foreground" /> : <Archive className="w-3.5 h-3.5 text-muted-foreground" />}
+              </button>
+            )}
+          </div>
         ))}
         {filtered.length === 0 && (
           <div className="p-8 text-center text-sm text-muted-foreground">No emails match your filters</div>

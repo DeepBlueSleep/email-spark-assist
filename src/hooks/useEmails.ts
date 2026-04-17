@@ -110,6 +110,8 @@ export function useEmails() {
             customer: e.customer_id ? customersMap[e.customer_id] : undefined,
             is_relevant: e.is_relevant !== false,
             relevance_reason: e.relevance_reason || "",
+            is_read: e.is_read === true,
+            is_archived: e.is_archived === true,
           };
         });
 
@@ -141,5 +143,25 @@ export function useEmails() {
     [usingLiveData]
   );
 
-  return { emails, isLoading, usingLiveData, updateStatus };
+  const markRead = useCallback(
+    (id: string, is_read = true) => {
+      setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_read } : e)));
+      if (usingLiveData) {
+        invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } }).catch(console.error);
+      }
+    },
+    [usingLiveData]
+  );
+
+  const setArchived = useCallback(
+    (id: string, is_archived: boolean) => {
+      setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_archived } : e)));
+      if (usingLiveData) {
+        invokeFunction("api-emails", { method: "PATCH", body: { id, is_archived } }).catch(console.error);
+      }
+    },
+    [usingLiveData]
+  );
+
+  return { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived };
 }
