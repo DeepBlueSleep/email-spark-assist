@@ -57,14 +57,14 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           const newUsed = used + orderTotal;
 
           let status: CreditCheckResult["status"] = "ok";
-          let message = `Credit OK. Remaining after this order: $${(remaining - orderTotal).toFixed(2)}`;
+          let message = `Credit OK. Remaining after this order: ${(remaining - orderTotal).toFixed(2)}`;
 
           if (limit > 0 && newUsed > limit) {
             status = "exceeded";
-            message = `Credit limit exceeded! This order ($${orderTotal.toFixed(2)}) would bring usage to $${newUsed.toFixed(2)} against a $${limit.toFixed(2)} limit. Overage: $${(newUsed - limit).toFixed(2)}`;
+            message = `Credit limit exceeded! This order (${orderTotal.toFixed(2)}) would bring usage to ${newUsed.toFixed(2)} against a ${limit.toFixed(2)} limit. Overage: ${(newUsed - limit).toFixed(2)}`;
           } else if (limit > 0 && remaining - orderTotal < limit * 0.2) {
             status = "warning";
-            message = `Credit warning: After this order, only $${(remaining - orderTotal).toFixed(2)} (${Math.round(((remaining - orderTotal) / limit) * 100)}%) of credit remains.`;
+            message = `Credit warning: After this order, only ${(remaining - orderTotal).toFixed(2)} (${Math.round(((remaining - orderTotal) / limit) * 100)}%) of credit remains.`;
           }
 
           setCreditCheck({ status, credit_limit: limit, credit_used: used, credit_remaining: remaining, order_total: orderTotal, message });
@@ -234,9 +234,9 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
                     <p className="text-muted-foreground">{creditCheck.message}</p>
                     {creditCheck.credit_limit > 0 && (
                       <div className="flex gap-4 pt-1 text-muted-foreground">
-                        <span>Limit: <span className="font-medium text-foreground">${Number(creditCheck.credit_limit).toFixed(2)}</span></span>
-                        <span>Used: <span className="font-medium text-foreground">${Number(creditCheck.credit_used).toFixed(2)}</span></span>
-                        <span>Order: <span className="font-medium text-foreground">${Number(creditCheck.order_total).toFixed(2)}</span></span>
+                        <span>Limit: <span className="font-medium text-foreground">{Number(creditCheck.credit_limit).toFixed(2)}</span></span>
+                        <span>Used: <span className="font-medium text-foreground">{Number(creditCheck.credit_used).toFixed(2)}</span></span>
+                        <span>Order: <span className="font-medium text-foreground">{Number(creditCheck.order_total).toFixed(2)}</span></span>
                       </div>
                     )}
                   </div>
