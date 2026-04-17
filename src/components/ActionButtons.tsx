@@ -3,6 +3,7 @@ import { Email, Status } from "@/data/mockData";
 import type { DraftOrderItem } from "./DraftOrder";
 import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck, Ban } from "lucide-react";
 import { invokeFunction } from "@/lib/api";
+import { pushApprovedOrder, pushRequestInfo, pushEscalation } from "@/lib/autocount";
 import { toast } from "sonner";
 
 interface ActionButtonsProps {
@@ -85,27 +86,23 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     if (isCreditExceeded) return;
     setIsSending(true);
     try {
-      // Build payload with all quotation data
-      const payload = {
+      // Push approved order to Autocount (stub — endpoint not live yet)
+      await pushApprovedOrder({
         email_id: email.id,
+        customer_code: email.customer?.code || null,
         customer_name: email.customer_name,
         customer_email: email.email,
-        customer_id: email.customer_id || null,
         subject: email.subject,
         intent: email.intent,
-        sentiment: email.sentiment,
+        triggered_at: new Date().toISOString(),
         reply_tone: selectedTone,
         reply_draft: replyDraft,
         order_total: orderTotal,
         order_items: draftOrderItems.map((item) => ({
-          sku_code: item.sku_code,
-          name: item.name,
-          category: item.category,
-          color: item.color,
-          size: item.size,
-          price: item.price,
-          quantity: item.quantity,
-          line_total: item.price * item.quantity,
+          ItemCode: item.sku_code,
+          Description: item.name,
+          Qty: item.quantity,
+          UnitPrice: item.price,
         })),
         credit_check: creditCheck ? {
           status: creditCheck.status,
@@ -113,21 +110,7 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           credit_used: Number(creditCheck.credit_used),
           order_total: Number(creditCheck.order_total),
         } : null,
-        approved_at: new Date().toISOString(),
-      };
-
-      // Post to n8n webhook via server-side proxy (avoids CORS)
-      try {
-        await invokeFunction("api-webhook-proxy", {
-          method: "POST",
-          body: {
-            webhook_url: "https://n8n.srv1031900.hstgr.cloud/webhook-test/b32920d4-7c8a-4b20-b0e1-b05d88858f7c",
-            payload,
-          },
-        });
-      } catch (webhookErr) {
-        console.warn("Webhook post failed (non-blocking):", webhookErr);
-      }
+      });
 
       // Update email status
       await invokeFunction("api-emails", {
@@ -146,6 +129,18 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
 
   const handleRequestInfo = async () => {
     try {
+      // Log info-request activity to Autocount (stub — endpoint not live yet)
+      await pushRequestInfo({
+        email_id: email.id,
+        customer_code: email.customer?.code || null,
+        customer_name: email.customer_name,
+        customer_email: email.email,
+        subject: email.subject,
+        intent: email.intent,
+        triggered_at: new Date().toISOString(),
+        message: clarificationMsg,
+      });
+
       await invokeFunction("api-emails", {
         method: "PATCH",
         body: { id: email.id, status: "Awaiting Customer" },
@@ -161,6 +156,18 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   const handleEscalate = async () => {
     if (!escalateReason.trim()) return;
     try {
+      // Flag escalation in Autocount (stub — endpoint not live yet)
+      await pushEscalation({
+        email_id: email.id,
+        customer_code: email.customer?.code || null,
+        customer_name: email.customer_name,
+        customer_email: email.email,
+        subject: email.subject,
+        intent: email.intent,
+        triggered_at: new Date().toISOString(),
+        reason: escalateReason,
+      });
+
       await invokeFunction("api-emails", {
         method: "PATCH",
         body: { id: email.id, status: "Escalated" },
