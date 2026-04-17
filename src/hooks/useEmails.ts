@@ -108,6 +108,8 @@ export function useEmails() {
               })),
             customer_id: e.customer_id || undefined,
             customer: e.customer_id ? customersMap[e.customer_id] : undefined,
+            is_relevant: e.is_relevant !== false,
+            relevance_reason: e.relevance_reason || "",
           };
         });
 

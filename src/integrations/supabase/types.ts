@@ -178,7 +178,9 @@ export type Database = {
           id: string
           intent: string | null
           intent_confidence: number | null
+          is_relevant: boolean
           recommended_sku_codes: Json | null
+          relevance_reason: string | null
           sentiment: string | null
           sentiment_confidence: number | null
           status: string | null
@@ -198,7 +200,9 @@ export type Database = {
           id?: string
           intent?: string | null
           intent_confidence?: number | null
+          is_relevant?: boolean
           recommended_sku_codes?: Json | null
+          relevance_reason?: string | null
           sentiment?: string | null
           sentiment_confidence?: number | null
           status?: string | null
@@ -218,7 +222,9 @@ export type Database = {
           id?: string
           intent?: string | null
           intent_confidence?: number | null
+          is_relevant?: boolean
           recommended_sku_codes?: Json | null
+          relevance_reason?: string | null
           sentiment?: string | null
           sentiment_confidence?: number | null
           status?: string | null

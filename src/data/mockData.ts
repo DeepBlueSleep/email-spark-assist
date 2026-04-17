@@ -77,6 +77,8 @@ export interface Email {
   attachmentsMeta?: AttachmentMeta[];
   customer_id?: string;
   customer?: Customer;
+  is_relevant?: boolean;
+  relevance_reason?: string;
 }
 
 export const mockEmails: Email[] = [
