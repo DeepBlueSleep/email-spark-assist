@@ -18,7 +18,7 @@ const Index = () => {
   const statuses = useStatuses();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<InboxTab>("unread");
-  const [collapsed, setCollapsed] = useState(false);
+  const [listCollapsed, setListCollapsed] = useState(false);
 
   const { unread, read, archived, other } = useMemo(() => {
     const unread: Email[] = [];
@@ -85,12 +85,7 @@ const Index = () => {
       </header>
 
       <div className="flex flex-1 min-h-0">
-        <nav
-          className={cn(
-            "shrink-0 bg-card border-r border-border flex flex-col py-3 gap-1 transition-all duration-200",
-            collapsed ? "w-16 items-center" : "w-52 items-stretch px-2"
-          )}
-        >
+        <nav className="w-52 shrink-0 bg-card border-r border-border flex flex-col py-3 gap-1 px-2">
           {(Object.keys(tabConfig) as InboxTab[]).map((key) => {
             const cfg = tabConfig[key];
             const Icon = cfg.icon;
@@ -101,29 +96,20 @@ const Index = () => {
                 key={key}
                 onClick={() => { setTab(key); setSelectedId(null); }}
                 className={cn(
-                  "rounded-lg transition-colors relative",
-                  collapsed
-                    ? "w-12 h-12 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium"
-                    : "w-full h-10 flex items-center gap-3 px-3 text-sm font-medium",
+                  "w-full h-10 rounded-lg flex items-center gap-3 px-3 text-sm font-medium transition-colors",
                   active
                     ? key === "other"
                       ? "bg-muted-foreground/10 text-foreground"
                       : "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-accent"
                 )}
-                title={collapsed ? cfg.label : undefined}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                {collapsed ? (
-                  <span>{cfg.label}</span>
-                ) : (
-                  <span className="flex-1 text-left">{cfg.label}</span>
-                )}
+                <span className="flex-1 text-left">{cfg.label}</span>
                 {count > 0 && (
                   <span
                     className={cn(
                       "text-[10px] rounded-full px-1.5 min-w-[18px] h-[16px] flex items-center justify-center font-semibold",
-                      collapsed ? "absolute top-1 right-1 text-[9px] min-w-[14px] h-[14px] px-1" : "",
                       key === "other"
                         ? "bg-muted-foreground/20 text-foreground"
                         : key === "unread"
@@ -137,29 +123,36 @@ const Index = () => {
               </button>
             );
           })}
-
-          <button
-            onClick={() => setCollapsed((c) => !c)}
-            className={cn(
-              "mt-auto rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors flex items-center justify-center",
-              collapsed ? "w-12 h-9" : "w-full h-9 gap-2 text-xs px-3"
-            )}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <><ChevronLeft className="w-4 h-4" /><span>Collapse</span></>}
-          </button>
         </nav>
 
-        <div className="w-[380px] shrink-0">
-          <EmailList
-            emails={visibleEmails}
-            selectedId={effectiveSelectedId}
-            onSelect={(e) => setSelectedId(e.id)}
-            statuses={statuses}
-            onArchive={tab === "other" ? undefined : handleArchive}
-            title={tabConfig[tab].label}
-          />
-        </div>
+        {!listCollapsed && (
+          <div className="w-[380px] shrink-0 relative">
+            <EmailList
+              emails={visibleEmails}
+              selectedId={effectiveSelectedId}
+              onSelect={(e) => setSelectedId(e.id)}
+              statuses={statuses}
+              onArchive={tab === "other" ? undefined : handleArchive}
+              title={tabConfig[tab].label}
+            />
+            <button
+              onClick={() => setListCollapsed(true)}
+              className="absolute top-3 right-3 z-10 p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              title="Collapse email list"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        {listCollapsed && (
+          <button
+            onClick={() => setListCollapsed(false)}
+            className="w-8 shrink-0 bg-card border-r border-border flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            title="Expand email list"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
         {selectedEmail ? (
           tab === "other" ? (
             <IrrelevantEmailView email={selectedEmail} />
