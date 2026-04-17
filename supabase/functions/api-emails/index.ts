@@ -90,13 +90,21 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Ensure read/archive columns exist in NeonDB (idempotent guard)
+      await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_read boolean NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false`;
+
       const status = fields.status ?? null;
       const aiReplyDraft = fields.ai_reply_draft ?? null;
+      const isRead = typeof fields.is_read === "boolean" ? fields.is_read : null;
+      const isArchived = typeof fields.is_archived === "boolean" ? fields.is_archived : null;
 
       await sql`
         UPDATE emails SET
           status = COALESCE(${status}, status),
           ai_reply_draft = COALESCE(${aiReplyDraft}, ai_reply_draft),
+          is_read = COALESCE(${isRead}, is_read),
+          is_archived = COALESCE(${isArchived}, is_archived),
           updated_at = now()
         WHERE id = ${id}
       `;
