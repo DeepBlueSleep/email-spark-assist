@@ -8,6 +8,10 @@ Deno.serve(async (req) => {
   const sql = getDb();
 
   try {
+    // Ensure relevance columns exist (idempotent guard for NeonDB)
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_relevant boolean NOT NULL DEFAULT true`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS relevance_reason text DEFAULT ''`;
+
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
     if (webhookSecret) {
       const providedSecret = req.headers.get("x-webhook-secret");
