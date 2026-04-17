@@ -53,8 +53,10 @@ Deno.serve(async (req) => {
       if (payload.sentiment_confidence !== undefined) vals.sentiment_confidence = payload.sentiment_confidence;
       if (payload.intent !== undefined) vals.intent = payload.intent;
       if (payload.intent_confidence !== undefined) vals.intent_confidence = payload.intent_confidence;
-      // Status is NOT accepted from external payload — auto-set to "AI Processed"
-      vals.status = "AI Processed";
+      if (payload.is_relevant !== undefined) vals.is_relevant = !!payload.is_relevant;
+      if (payload.relevance_reason !== undefined) vals.relevance_reason = String(payload.relevance_reason || "");
+      // Status is NOT accepted from external payload — auto-set based on relevance
+      vals.status = payload.is_relevant === false ? "Irrelevant" : "AI Processed";
 
       // AI reply drafts
       let drafts: { tone: string; draft: string }[] = [];
@@ -93,6 +95,8 @@ Deno.serve(async (req) => {
           sentiment_confidence = COALESCE(${vals.sentiment_confidence ?? null}, sentiment_confidence),
           intent = COALESCE(${vals.intent ?? null}, intent),
           intent_confidence = COALESCE(${vals.intent_confidence ?? null}, intent_confidence),
+          is_relevant = COALESCE(${vals.is_relevant ?? null}, is_relevant),
+          relevance_reason = COALESCE(${vals.relevance_reason ?? null}, relevance_reason),
           status = ${vals.status},
           ai_reply_draft = COALESCE(${vals.ai_reply_draft ?? null}, ai_reply_draft),
           recommended_sku_codes = COALESCE(${skuCodesVal}::jsonb, recommended_sku_codes),
