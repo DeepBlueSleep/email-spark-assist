@@ -127,7 +127,7 @@ const Index = () => {
         </nav>
 
         {!listCollapsed && (
-          <div className="w-[380px] shrink-0 relative">
+          <div className="w-[380px] shrink-0">
             <EmailList
               emails={visibleEmails}
               selectedId={effectiveSelectedId}
@@ -135,14 +135,8 @@ const Index = () => {
               statuses={statuses}
               onArchive={tab === "other" ? undefined : handleArchive}
               title={tabConfig[tab].label}
+              onCollapse={() => setListCollapsed(true)}
             />
-            <button
-              onClick={() => setListCollapsed(true)}
-              className="absolute top-3 right-3 z-10 p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              title="Collapse email list"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
           </div>
         )}
         {listCollapsed && (

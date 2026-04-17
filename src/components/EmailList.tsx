@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Email, Sentiment, Intent, Status } from "@/data/mockData";
 import { StatusDef } from "@/hooks/useStatuses";
-import { Search, Filter, Mail, ChevronDown, Paperclip, Archive, ArchiveRestore } from "lucide-react";
+import { Search, Filter, Mail, ChevronDown, Paperclip, Archive, ArchiveRestore, ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatLabel } from "@/lib/utils";
 
@@ -36,9 +36,10 @@ interface EmailListProps {
   statuses: StatusDef[];
   onArchive?: (email: Email, archived: boolean) => void;
   title?: string;
+  onCollapse?: () => void;
 }
 
-export function EmailList({ emails, selectedId, onSelect, statuses, onArchive, title = "Inbox" }: EmailListProps) {
+export function EmailList({ emails, selectedId, onSelect, statuses, onArchive, title = "Inbox", onCollapse }: EmailListProps) {
   const [search, setSearch] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<Sentiment | "all">("all");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
@@ -70,6 +71,15 @@ export function EmailList({ emails, selectedId, onSelect, statuses, onArchive, t
           <Mail className="w-5 h-5 text-primary" />
           <h2 className="font-semibold text-foreground">{title}</h2>
           <span className="ml-auto text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{emails.length}</span>
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              className="p-1 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              title="Collapse email list"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
