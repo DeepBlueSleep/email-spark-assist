@@ -84,9 +84,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
       } catch {
         setCreditCheck({ status: "warning", credit_limit: 0, credit_used: 0, credit_remaining: 0, order_total: orderTotal, message: "Could not verify credit — proceeding at your discretion." });
       }
-      } catch {
-        setCreditCheck({ status: "warning", credit_limit: 0, credit_used: 0, credit_remaining: 0, order_total: orderTotal, message: "Could not verify credit — proceeding at your discretion." });
-      }
       setCheckingCredit(false);
     }
     runCreditCheck();
