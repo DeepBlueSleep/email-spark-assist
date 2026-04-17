@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Email, Status } from "@/data/mockData";
 import type { DraftOrderItem } from "./DraftOrder";
-import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck, Ban } from "lucide-react";
+import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck, Ban, UserPlus } from "lucide-react";
 import { invokeFunction } from "@/lib/api";
 import { pushApprovedOrder, pushRequestInfo, pushEscalation } from "@/lib/autocount";
 import { toast } from "sonner";
@@ -276,6 +276,8 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
                       ? "bg-destructive/10 border border-destructive/20"
                       : creditCheck.status === "warning"
                       ? "bg-amber-500/10 border border-amber-500/20"
+                      : creditCheck.status === "unknown"
+                      ? "bg-primary/10 border border-primary/20"
                       : "bg-sentiment-positive/10 border border-sentiment-positive/20"
                   }`}>
                     <div className="flex items-center gap-2 font-semibold">
@@ -283,6 +285,8 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
                         <><AlertTriangle className="w-4 h-4 text-destructive" /><span className="text-destructive">Credit Limit Exceeded</span></>
                       ) : creditCheck.status === "warning" ? (
                         <><AlertTriangle className="w-4 h-4 text-amber-600" /><span className="text-amber-600">Credit Warning</span></>
+                      ) : creditCheck.status === "unknown" ? (
+                        <><UserPlus className="w-4 h-4 text-primary" /><span className="text-primary">New Customer — Will Be Created</span></>
                       ) : (
                         <><ShieldCheck className="w-4 h-4 text-sentiment-positive" /><span className="text-sentiment-positive">Credit Check Passed</span></>
                       )}
