@@ -145,3 +145,58 @@ export async function checkCredit(customerCode: string): Promise<ACCreditCheck> 
 export async function getPayments(customerCode?: string): Promise<{ payments: any[]; total: number }> {
   return call("payments", { params: customerCode ? { customer_code: customerCode } : undefined });
 }
+
+// ─── Status Workflow Hooks (stubs for future Autocount integration) ─────────
+// These endpoints don't exist yet on the mock or live API. They're wired up so
+// that when the real Autocount webhooks are available, only AUTOCOUNT_BASE_URL
+// (or the path strings below) need to change. All calls are non-blocking:
+// failures are logged but won't prevent the local status update from happening.
+
+export interface ACStatusActionPayload {
+  email_id: string;
+  customer_code?: string | null;
+  customer_name: string;
+  customer_email: string;
+  subject: string;
+  intent?: string | null;
+  triggered_at: string;
+  // Action-specific extras
+  [key: string]: any;
+}
+
+async function postStatusAction(path: string, payload: ACStatusActionPayload) {
+  try {
+    // Currently routed to the mock-autocount edge function.
+    // Swap to the real Autocount webhook URL when integration is ready.
+    const result = await call(path, { method: "POST", body: payload });
+    console.log(`[autocount] ${path} →`, result);
+    return result;
+  } catch (err) {
+    console.warn(`[autocount] ${path} failed (non-blocking):`, err);
+    return null;
+  }
+}
+
+/** Approve & Send → push sales order / quotation to Autocount */
+export async function pushApprovedOrder(payload: ACStatusActionPayload & {
+  order_total: number;
+  order_items: Array<{ ItemCode: string; Description: string; Qty: number; UnitPrice: number }>;
+  reply_tone?: string;
+  reply_draft?: string;
+}) {
+  return postStatusAction("workflow/approve-order", payload);
+}
+
+/** Request More Info → log a follow-up activity against the customer */
+export async function pushRequestInfo(payload: ACStatusActionPayload & {
+  message: string;
+}) {
+  return postStatusAction("workflow/request-info", payload);
+}
+
+/** Reject / Escalate → flag the email/order for manager review */
+export async function pushEscalation(payload: ACStatusActionPayload & {
+  reason: string;
+}) {
+  return postStatusAction("workflow/escalate", payload);
+}
