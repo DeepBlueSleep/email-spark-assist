@@ -5,45 +5,43 @@ import { EmailList } from "@/components/EmailList";
 import { EmailDetail } from "@/components/EmailDetail";
 import { IrrelevantEmailView } from "@/components/IrrelevantEmailView";
 import {
-  Bot, Inbox, Wifi, WifiOff, Mail, MailOpen,
-  Archive, Filter as FilterIcon, ChevronLeft, ChevronRight,
+  Bot, Inbox, Wifi, WifiOff, Mail,
+  Archive, Filter as FilterIcon, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Email } from "@/data/mockData";
 
-type InboxTab = "unread" | "read" | "archived" | "other";
+type InboxTab = "inbox" | "archived" | "other";
 
 const Index = () => {
   const { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived } = useEmails();
   const statuses = useStatuses();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<InboxTab>("unread");
+  const [tab, setTab] = useState<InboxTab>("inbox");
   const [listCollapsed, setListCollapsed] = useState(false);
 
-  const { unread, read, archived, other } = useMemo(() => {
-    const unread: Email[] = [];
-    const read: Email[] = [];
+  const { inbox, archived, other, unreadCount } = useMemo(() => {
+    const inbox: Email[] = [];
     const archived: Email[] = [];
     const other: Email[] = [];
+    let unreadCount = 0;
     for (const e of emails) {
       if (e.is_relevant === false) {
         other.push(e);
       } else if (e.is_archived) {
         archived.push(e);
-      } else if (e.is_read) {
-        read.push(e);
       } else {
-        unread.push(e);
+        inbox.push(e);
+        if (!e.is_read) unreadCount++;
       }
     }
-    return { unread, read, archived, other };
+    return { inbox, archived, other, unreadCount };
   }, [emails]);
 
-  const tabConfig: Record<InboxTab, { label: string; icon: typeof Inbox; emails: Email[]; emptyText: string }> = {
-    unread:   { label: "Unread",   icon: Mail,        emails: unread,   emptyText: "No unread emails" },
-    read:     { label: "Read",     icon: MailOpen,    emails: read,     emptyText: "No read emails" },
-    archived: { label: "Archived", icon: Archive,     emails: archived, emptyText: "No archived emails" },
-    other:    { label: "Other",    icon: FilterIcon,  emails: other,    emptyText: "No irrelevant emails" },
+  const tabConfig: Record<InboxTab, { label: string; icon: typeof Inbox; emails: Email[]; emptyText: string; badge: number }> = {
+    inbox:    { label: "Inbox",    icon: Mail,        emails: inbox,    emptyText: "No emails", badge: unreadCount },
+    archived: { label: "Archived", icon: Archive,     emails: archived, emptyText: "No archived emails", badge: 0 },
+    other:    { label: "Other",    icon: FilterIcon,  emails: other,    emptyText: "No irrelevant emails", badge: 0 },
   };
 
   const visibleEmails = tabConfig[tab].emails;
@@ -91,7 +89,7 @@ const Index = () => {
             const cfg = tabConfig[key];
             const Icon = cfg.icon;
             const active = tab === key;
-            const count = cfg.emails.length;
+            const count = cfg.badge;
             return (
               <button
                 key={key}
@@ -114,9 +112,7 @@ const Index = () => {
                       "absolute top-1 right-1 text-[9px] rounded-full px-1 min-w-[14px] h-[14px] flex items-center justify-center font-semibold",
                       key === "other"
                         ? "bg-muted-foreground text-background"
-                        : key === "unread"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted-foreground/40 text-foreground"
+                        : "bg-primary text-primary-foreground"
                     )}
                   >
                     {count}
