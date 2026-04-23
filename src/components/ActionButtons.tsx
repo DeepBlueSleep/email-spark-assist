@@ -33,14 +33,21 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   const [isSending, setIsSending] = useState(false);
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
   const [checkingCredit, setCheckingCredit] = useState(false);
+  const [overrideAcknowledged, setOverrideAcknowledged] = useState(false);
   const [clarificationMsg, setClarificationMsg] = useState(
     `Dear ${email.customer_name},\n\nThank you for your email. We need some additional information to process your request:\n\n- [Please specify details]\n\nCould you please provide these details at your earliest convenience?\n\nBest regards,\nOrder Processing Team`
   );
+
+  const creditRelevantIntents = ["Order Creation", "Order Change", "Credit Enquiry"];
+  const isCreditRelevant = creditRelevantIntents.includes(email.intent);
+  const customerCreditLimit = Number(email.customer?.credit_limit ?? 0);
+  const needsCreditSetup = isCreditRelevant && (!email.customer || customerCreditLimit <= 0);
 
   // Simulate credit check when confirm dialog opens
   useEffect(() => {
     if (!showConfirm) {
       setCreditCheck(null);
+      setOverrideAcknowledged(false);
       return;
     }
     async function runCreditCheck() {
@@ -90,9 +97,10 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   }, [showConfirm, email.email, orderTotal]);
 
   const isCreditExceeded = creditCheck?.status === "exceeded";
+  const requiresOverride = isCreditExceeded && !overrideAcknowledged;
 
   const handleApproveAndSend = async () => {
-    if (isCreditExceeded) return;
+    if (requiresOverride) return;
     setIsSending(true);
     try {
       let resolvedCustomerId = email.customer_id || creditCheck?.customer_id || null;
@@ -234,12 +242,21 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
       <h3 className="font-semibold mb-4">Actions</h3>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <button
-          onClick={() => setShowConfirm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-sentiment-positive text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
-        >
-          <Send className="w-4 h-4" /> Approve & Send
-        </button>
+        {needsCreditSetup ? (
+          <div
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted text-muted-foreground font-medium text-sm cursor-not-allowed"
+            title={!email.customer ? "Create a customer record first" : "Initialize this customer's credit history first"}
+          >
+            <Ban className="w-4 h-4" /> Approve & Send — {email.customer ? "Credit Setup Required" : "No Customer Record"}
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-sentiment-positive text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+          >
+            <Send className="w-4 h-4" /> Approve & Send
+          </button>
+        )}
         <button
           onClick={() => setShowRequestInfo(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-status-awaiting/30 text-status-awaiting font-medium text-sm hover:bg-status-awaiting/5 transition-colors"
@@ -253,6 +270,13 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           <XCircle className="w-4 h-4" /> Reject / Escalate
         </button>
       </div>
+      {needsCreditSetup && (
+        <p className="mt-3 text-xs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
+          ⚠ {email.customer
+            ? "This customer has no credit history. Use the Credit Health card above to initialize before approving."
+            : "This sender is not in the customer database. Use the Credit Health card above to create a record before approving."}
+        </p>
+      )}
 
       {showConfirm && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowConfirm(false)}>
@@ -307,12 +331,33 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
             <div className="bg-secondary/50 rounded-lg p-4 max-h-48 overflow-y-auto mb-4">
               <pre className="text-xs whitespace-pre-wrap font-sans text-foreground/80">{replyDraft}</pre>
             </div>
+            {isCreditExceeded && (
+              <div className="mb-4 rounded-lg border-2 border-destructive bg-destructive/10 p-3">
+                <div className="flex items-start gap-2">
+                  <input
+                    id="credit-override"
+                    type="checkbox"
+                    checked={overrideAcknowledged}
+                    onChange={(e) => setOverrideAcknowledged(e.target.checked)}
+                    className="mt-0.5 accent-destructive"
+                  />
+                  <label htmlFor="credit-override" className="text-xs text-destructive font-medium leading-snug cursor-pointer">
+                    I acknowledge this order <span className="underline">exceeds the customer's credit limit</span> and accept responsibility for approving it. The overage will be charged against their account.
+                  </label>
+                </div>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
               {isCreditExceeded ? (
-                <div className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-destructive/10 text-destructive border border-destructive/20 cursor-not-allowed">
-                  <Ban className="w-4 h-4" /> Blocked — Credit Exceeded
-                </div>
+                <button
+                  onClick={handleApproveAndSend}
+                  disabled={isSending || checkingCredit || requiresOverride}
+                  className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground font-semibold hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md ring-2 ring-destructive/30"
+                >
+                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
+                  Override & Send Anyway
+                </button>
               ) : (
                 <button
                   onClick={handleApproveAndSend}
