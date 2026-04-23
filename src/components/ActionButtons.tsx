@@ -213,7 +213,7 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   const handleEscalate = async () => {
     if (!escalateReason.trim()) return;
     try {
-      // Flag escalation in Autocount (stub — endpoint not live yet)
+      // Flag escalation in Autocount (non-blocking by design — failures are logged inside)
       await pushEscalation({
         email_id: email.id,
         customer_code: email.customer?.code || null,
@@ -225,15 +225,18 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         reason: escalateReason,
       });
 
+      // Persist status change — this is the only step that can hard-fail
       await invokeFunction("api-emails", {
         method: "PATCH",
         body: { id: email.id, status: "Escalated" },
       });
-      onStatusChange(email.id, "Escalated");
+
+      try { onStatusChange(email.id, "Escalated"); } catch (e) { console.warn("onStatusChange threw:", e); }
       toast.success("Email escalated");
       setShowEscalate(false);
-    } catch {
-      toast.error("Failed to escalate");
+    } catch (err) {
+      console.error("Escalate failed:", err);
+      toast.error(`Failed to escalate: ${err instanceof Error ? err.message : "unknown error"}`);
     }
   };
 
