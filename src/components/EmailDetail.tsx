@@ -62,6 +62,20 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const hasAttachments = email.attachments && email.attachments.length > 0;
   const isBoxx = email.customer?.is_boxx || email.customer_name.startsWith("BOXX -");
 
+  // Credit health — shown for credit-relevant intents when customer is mapped & has a limit
+  const creditRelevantIntents = ["Order Creation", "Order Change", "Credit Enquiry"];
+  const showCreditHealth =
+    !!email.customer &&
+    typeof email.customer.credit_limit === "number" &&
+    email.customer.credit_limit > 0 &&
+    creditRelevantIntents.includes(email.intent);
+  const creditLimit = Number(email.customer?.credit_limit ?? 0);
+  const creditUsed = Number(email.customer?.credit_used ?? 0);
+  const projected = creditUsed + (orderTotal || 0);
+  const overLimit = projected > creditLimit;
+  const utilization = creditLimit > 0 ? Math.min(100, Math.round((projected / creditLimit) * 100)) : 0;
+  const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
   return (
     <div className="flex-1 flex min-h-0">
       <div className="flex-1 overflow-y-auto p-6 space-y-5 animate-fade-in">
