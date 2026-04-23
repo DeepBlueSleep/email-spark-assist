@@ -8,7 +8,10 @@ import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
 import { AttachmentsPanel } from "./AttachmentsPanel";
 import { Badge } from "./ui/badge";
-import { User, Clock, Paperclip, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Button } from "./ui/button";
+import { User, Clock, Paperclip, ShieldCheck, ShieldAlert, ShieldQuestion, UserPlus, Loader2 } from "lucide-react";
+import { invokeFunction } from "@/lib/api";
+import { toast } from "sonner";
 
 interface EmailDetailProps {
   email: Email;
@@ -62,18 +65,65 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const hasAttachments = email.attachments && email.attachments.length > 0;
   const isBoxx = email.customer?.is_boxx || email.customer_name.startsWith("BOXX -");
 
-  // Credit health — shown for credit-relevant intents when customer is mapped & has a limit
+  // Credit health visibility
   const creditRelevantIntents = ["Order Creation", "Order Change", "Credit Enquiry"];
+  const isCreditRelevant = creditRelevantIntents.includes(email.intent);
+  const hasCustomer = !!email.customer;
   const creditLimit = Number(email.customer?.credit_limit ?? 0);
   const creditUsed = Number(email.customer?.credit_used ?? 0);
-  const showCreditHealth =
-    !!email.customer &&
-    creditLimit > 0 &&
-    creditRelevantIntents.includes(email.intent);
+  const hasCreditHistory = hasCustomer && creditLimit > 0;
   const projected = creditUsed + (orderTotal || 0);
-  const overLimit = projected > creditLimit;
+  const overLimit = hasCreditHistory && projected > creditLimit;
   const utilization = creditLimit > 0 ? Math.min(100, Math.round((projected / creditLimit) * 100)) : 0;
   const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [initializingCredit, setInitializingCredit] = useState(false);
+
+  const handleCreateCustomer = async () => {
+    setCreatingCustomer(true);
+    try {
+      await invokeFunction("api-customers", {
+        method: "POST",
+        body: {
+          name: email.customer_name || "Unknown",
+          email: email.email,
+          credit_limit: 0,
+          credit_used: 0,
+          credit_terms: "Net 30",
+          notes: "Auto-created from email — no credit history yet.",
+        },
+      });
+      toast.success("Customer record created with empty credit history.");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e: any) {
+      toast.error(`Failed to create customer: ${e.message || e}`);
+    } finally {
+      setCreatingCustomer(false);
+    }
+  };
+
+  const handleInitializeCredit = async () => {
+    if (!email.customer) return;
+    setInitializingCredit(true);
+    try {
+      await invokeFunction("api-customers", {
+        method: "PATCH",
+        body: {
+          id: email.customer.id,
+          credit_limit: 0,
+          credit_used: 0,
+          credit_terms: email.customer.credit_terms || "Net 30",
+        },
+      });
+      toast.success("Credit history initialized. Set a limit in Customers to enable orders.");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e: any) {
+      toast.error(`Failed to initialize credit: ${e.message || e}`);
+    } finally {
+      setInitializingCredit(false);
+    }
+  };
 
   return (
     <div className="flex-1 flex min-h-0">
