@@ -191,5 +191,53 @@ export function useEmails() {
     [usingLiveData]
   );
 
-  return { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail };
+  const bulkDelete = useCallback(
+    async (ids: string[]) => {
+      if (ids.length === 0) return;
+      const set = new Set(ids);
+      setEmails((prev) => prev.filter((e) => !set.has(e.id)));
+      if (usingLiveData) {
+        try {
+          await invokeFunction("api-emails", { method: "DELETE", body: { ids } });
+        } catch (err) {
+          console.error("Failed to bulk delete:", err);
+        }
+      }
+    },
+    [usingLiveData]
+  );
+
+  const bulkSetArchived = useCallback(
+    async (ids: string[], is_archived: boolean) => {
+      if (ids.length === 0) return;
+      const set = new Set(ids);
+      setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_archived } : e)));
+      if (usingLiveData) {
+        await Promise.all(
+          ids.map((id) =>
+            invokeFunction("api-emails", { method: "PATCH", body: { id, is_archived } }).catch(console.error)
+          )
+        );
+      }
+    },
+    [usingLiveData]
+  );
+
+  const bulkMarkRead = useCallback(
+    async (ids: string[], is_read: boolean) => {
+      if (ids.length === 0) return;
+      const set = new Set(ids);
+      setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read } : e)));
+      if (usingLiveData) {
+        await Promise.all(
+          ids.map((id) =>
+            invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } }).catch(console.error)
+          )
+        );
+      }
+    },
+    [usingLiveData]
+  );
+
+  return { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail, bulkDelete, bulkSetArchived, bulkMarkRead };
 }
