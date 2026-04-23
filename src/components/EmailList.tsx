@@ -67,6 +67,9 @@ export function EmailList({
   const [intentFilter, setIntentFilter] = useState<Intent | "all">("all");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showEscalateConfirm, setShowEscalateConfirm] = useState(false);
+  const [bulkEscalateReason, setBulkEscalateReason] = useState("");
 
   const filtered = useMemo(() => emails.filter((e) => {
     const matchSearch = !search || e.customer_name.toLowerCase().includes(search.toLowerCase()) || e.subject.toLowerCase().includes(search.toLowerCase());
