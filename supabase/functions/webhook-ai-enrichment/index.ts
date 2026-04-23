@@ -59,7 +59,10 @@ Deno.serve(async (req) => {
       if (payload.intent_confidence !== undefined) vals.intent_confidence = payload.intent_confidence;
       if (payload.is_relevant !== undefined) vals.is_relevant = !!payload.is_relevant;
       if (payload.relevance_reason !== undefined) vals.relevance_reason = String(payload.relevance_reason || "");
-      // Status is NOT accepted from external payload — auto-set based on relevance
+      // Status is auto-set based on relevance, but ONLY when the email is still in
+      // its initial "New" state. Once the user has taken any action (Replied,
+      // Escalated, AI Processed, Awaiting Customer, etc.), AI re-enrichment must
+      // not clobber that workflow state.
       vals.status = payload.is_relevant === false ? "Irrelevant" : "AI Processed";
 
       // AI reply drafts

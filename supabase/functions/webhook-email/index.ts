@@ -291,8 +291,9 @@ Deno.serve(async (req) => {
           subject = EXCLUDED.subject, body = EXCLUDED.body, timestamp = EXCLUDED.timestamp,
           sentiment = EXCLUDED.sentiment, sentiment_confidence = EXCLUDED.sentiment_confidence,
           intent = EXCLUDED.intent, intent_confidence = EXCLUDED.intent_confidence,
-          ai_reply_draft = EXCLUDED.ai_reply_draft, status = EXCLUDED.status,
           attachments = EXCLUDED.attachments, updated_at = now()
+          -- NOTE: Do NOT overwrite status, ai_reply_draft, is_read, or is_archived on conflict.
+          -- These reflect user actions in the dashboard and must persist across re-ingestions.
         RETURNING id, external_id
       `;
 
