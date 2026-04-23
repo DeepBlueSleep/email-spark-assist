@@ -8,7 +8,7 @@ import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
 import { AttachmentsPanel } from "./AttachmentsPanel";
 import { Badge } from "./ui/badge";
-import { User, Clock, Paperclip } from "lucide-react";
+import { User, Clock, Paperclip, ShieldCheck, ShieldAlert } from "lucide-react";
 
 interface EmailDetailProps {
   email: Email;
