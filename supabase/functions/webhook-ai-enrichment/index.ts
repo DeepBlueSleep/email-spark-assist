@@ -59,7 +59,10 @@ Deno.serve(async (req) => {
       if (payload.intent_confidence !== undefined) vals.intent_confidence = payload.intent_confidence;
       if (payload.is_relevant !== undefined) vals.is_relevant = !!payload.is_relevant;
       if (payload.relevance_reason !== undefined) vals.relevance_reason = String(payload.relevance_reason || "");
-      // Status is NOT accepted from external payload — auto-set based on relevance
+      // Status is auto-set based on relevance, but ONLY when the email is still in
+      // its initial "New" state. Once the user has taken any action (Replied,
+      // Escalated, AI Processed, Awaiting Customer, etc.), AI re-enrichment must
+      // not clobber that workflow state.
       vals.status = payload.is_relevant === false ? "Irrelevant" : "AI Processed";
 
       // AI reply drafts
@@ -101,7 +104,7 @@ Deno.serve(async (req) => {
           intent_confidence = COALESCE(${vals.intent_confidence ?? null}, intent_confidence),
           is_relevant = COALESCE(${vals.is_relevant ?? null}, is_relevant),
           relevance_reason = COALESCE(${vals.relevance_reason ?? null}, relevance_reason),
-          status = ${vals.status},
+          status = CASE WHEN status IN ('New', 'AI Processed', 'Irrelevant') THEN ${vals.status} ELSE status END,
           ai_reply_draft = COALESCE(${vals.ai_reply_draft ?? null}, ai_reply_draft),
           recommended_sku_codes = COALESCE(${skuCodesVal}::jsonb, recommended_sku_codes),
           updated_at = now()
