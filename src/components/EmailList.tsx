@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { Email, Sentiment, Intent, Status } from "@/data/mockData";
 import { StatusDef } from "@/hooks/useStatuses";
-import { Search, Filter, Mail, ChevronDown, Paperclip, Archive, ArchiveRestore, ChevronLeft } from "lucide-react";
+import { Search, Filter, Mail, ChevronDown, Paperclip, Archive, ArchiveRestore, ChevronLeft, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatLabel } from "@/lib/utils";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const sentimentDotClass: Record<Sentiment, string> = {
   positive: "bg-sentiment-positive",
@@ -35,11 +39,12 @@ interface EmailListProps {
   onSelect: (email: Email) => void;
   statuses: StatusDef[];
   onArchive?: (email: Email, archived: boolean) => void;
+  onDelete?: (email: Email) => void;
   title?: string;
   onCollapse?: () => void;
 }
 
-export function EmailList({ emails, selectedId, onSelect, statuses, onArchive, title = "Inbox", onCollapse }: EmailListProps) {
+export function EmailList({ emails, selectedId, onSelect, statuses, onArchive, onDelete, title = "Inbox", onCollapse }: EmailListProps) {
   const [search, setSearch] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<Sentiment | "all">("all");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
@@ -163,15 +168,47 @@ export function EmailList({ emails, selectedId, onSelect, statuses, onArchive, t
                 </div>
               </div>
             </button>
-            {onArchive && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onArchive(email, !email.is_archived); }}
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-background/80 transition-opacity"
-                title={email.is_archived ? "Unarchive" : "Archive"}
-              >
-                {email.is_archived ? <ArchiveRestore className="w-3.5 h-3.5 text-muted-foreground" /> : <Archive className="w-3.5 h-3.5 text-muted-foreground" />}
-              </button>
-            )}
+            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {onArchive && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onArchive(email, !email.is_archived); }}
+                  className="p-1.5 rounded-md hover:bg-background/80"
+                  title={email.is_archived ? "Unarchive" : "Archive"}
+                >
+                  {email.is_archived ? <ArchiveRestore className="w-3.5 h-3.5 text-muted-foreground" /> : <Archive className="w-3.5 h-3.5 text-muted-foreground" />}
+                </button>
+              )}
+              {onDelete && email.is_archived && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1.5 rounded-md hover:bg-destructive/10"
+                      title="Delete permanently"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this email?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete "{email.subject}" from {email.customer_name}. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDelete(email)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
           </div>
         ))}
         {filtered.length === 0 && (

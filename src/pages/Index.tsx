@@ -14,7 +14,7 @@ import type { Email } from "@/data/mockData";
 type InboxTab = "inbox" | "archived" | "other";
 
 const Index = () => {
-  const { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived } = useEmails();
+  const { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail } = useEmails();
   const statuses = useStatuses();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<InboxTab>("inbox");
@@ -61,6 +61,11 @@ const Index = () => {
 
   const handleArchive = (email: Email, archive: boolean) => {
     setArchived(email.id, archive);
+    if (selectedId === email.id) setSelectedId(null);
+  };
+
+  const handleDelete = (email: Email) => {
+    deleteEmail(email.id);
     if (selectedId === email.id) setSelectedId(null);
   };
 
@@ -131,6 +136,7 @@ const Index = () => {
               onSelect={handleSelect}
               statuses={statuses}
               onArchive={tab === "other" ? undefined : handleArchive}
+              onDelete={tab === "archived" ? handleDelete : undefined}
               title={tabConfig[tab].label}
               onCollapse={() => setListCollapsed(true)}
             />

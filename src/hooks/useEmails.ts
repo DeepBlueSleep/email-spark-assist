@@ -177,5 +177,19 @@ export function useEmails() {
     [usingLiveData]
   );
 
-  return { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived };
+  const deleteEmail = useCallback(
+    async (id: string) => {
+      setEmails((prev) => prev.filter((e) => e.id !== id));
+      if (usingLiveData) {
+        try {
+          await invokeFunction("api-emails", { method: "DELETE", body: { ids: [id] } });
+        } catch (err) {
+          console.error("Failed to delete email:", err);
+        }
+      }
+    },
+    [usingLiveData]
+  );
+
+  return { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail };
 }
