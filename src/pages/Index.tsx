@@ -14,7 +14,7 @@ import type { Email } from "@/data/mockData";
 type InboxTab = "inbox" | "archived" | "other";
 
 const Index = () => {
-  const { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail, bulkDelete, bulkSetArchived, bulkMarkRead } = useEmails();
+  const { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail, bulkDelete, bulkSetArchived, bulkMarkRead, bulkSetStatus } = useEmails();
   const statuses = useStatuses();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<InboxTab>("inbox");
@@ -140,8 +140,11 @@ const Index = () => {
               onBulkArchive={tab === "other" ? undefined : bulkSetArchived}
               onBulkDelete={tab === "archived" ? bulkDelete : undefined}
               onBulkMarkRead={tab === "inbox" ? bulkMarkRead : undefined}
+              onBulkApprove={tab === "inbox" ? (ids) => bulkSetStatus(ids, "Replied") : undefined}
+              onBulkEscalate={tab === "inbox" ? (ids) => bulkSetStatus(ids, "Escalated") : undefined}
               showArchiveBulk={tab !== "other"}
               showDeleteBulk={tab === "archived"}
+              showWorkflowBulk={tab === "inbox"}
               title={tabConfig[tab].label}
               onCollapse={() => setListCollapsed(true)}
             />
