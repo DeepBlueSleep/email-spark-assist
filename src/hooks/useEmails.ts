@@ -115,21 +115,11 @@ export function useEmails() {
           };
         });
 
-        // Merge with existing local state to preserve optimistic flags (is_read, is_archived, status)
-        // that may not yet have round-tripped through the server.
-        setEmails((prev) => {
-          const prevMap = new Map(prev.map((e) => [e.id, e]));
-          return mapped.map((m) => {
-            const local = prevMap.get(m.id);
-            if (!local) return m;
-            return {
-              ...m,
-              is_read: local.is_read || m.is_read,
-              is_archived: local.is_archived || m.is_archived,
-              status: local.status !== m.status && local.status !== "New" ? local.status : m.status,
-            };
-          });
-        });
+        // Server is the source of truth. The optimistic local update happens
+        // immediately on user action and the PATCH persists it; by the next poll
+        // the server reflects that state. Trust server values so un-archive,
+        // un-read, and status reverts propagate correctly.
+        setEmails(mapped);
         setUsingLiveData(true);
       }
     } catch (err) {
