@@ -38,25 +38,8 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
     setShowAttachments(false);
   }
 
-  const handleAddSKUToOrder = (skuCode: string, skuName: string) => {
-    const newItem: ExtractedOrderItem = {
-      id: `oi-new-${Date.now()}`,
-      item_code: skuCode,
-      item_name: skuName,
-      quantity: 1,
-      unit: "units",
-      delivery_date: "",
-      delivery_address: "",
-      remarks: "Added from SKU recommendation",
-    };
-    setOrderItems([...orderItems, newItem]);
-  };
 
-  const handleReplaceSKU = (oldItemId: string, skuCode: string, skuName: string) => {
-    setOrderItems(orderItems.map(item =>
-      item.id === oldItemId ? { ...item, item_code: skuCode, item_name: skuName, remarks: "Replaced via SKU recommendation" } : item
-    ));
-  };
+
 
   const hasOrderData = email.extracted_order.length > 0;
   const hasDraftOrder = email.recommended_skus.length > 0;
