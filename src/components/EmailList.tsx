@@ -270,6 +270,93 @@ export function EmailList({
         </div>
       )}
 
+      {/* Bulk Approve confirmation (sensitive: bypasses per-email credit check) */}
+      <AlertDialog open={showApproveConfirm} onOpenChange={setShowApproveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Bulk approve {selectedArr.length} email{selectedArr.length === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  This will mark all selected emails as <span className="font-semibold text-foreground">Replied</span> and complete them in bulk.
+                </p>
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-foreground/80 space-y-1">
+                  <p className="font-semibold flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Bulk approve skips per-email credit checks.</p>
+                  <p>For order or credit-related emails, open them individually to verify customer credit before approving.</p>
+                </div>
+                {(() => {
+                  const sensitive = selectedArr.filter((e) =>
+                    ["Order Creation", "Order Change", "Credit Enquiry"].includes(e.intent)
+                  );
+                  if (sensitive.length === 0) return null;
+                  return (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
+                      <p className="font-semibold">{sensitive.length} email{sensitive.length === 1 ? "" : "s"} contain credit-relevant intents:</p>
+                      <ul className="list-disc list-inside space-y-0.5 max-h-24 overflow-y-auto">
+                        {sensitive.slice(0, 5).map((e) => (
+                          <li key={e.id} className="truncate">{e.customer_name} — {e.intent}</li>
+                        ))}
+                        {sensitive.length > 5 && <li>+ {sensitive.length - 5} more</li>}
+                      </ul>
+                    </div>
+                  );
+                })()}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onBulkApprove?.(selectedArr.map((e) => e.id));
+                clearSelection();
+                setShowApproveConfirm(false);
+              }}
+              className="bg-sentiment-positive text-primary-foreground hover:opacity-90"
+            >
+              Approve {selectedArr.length}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Escalate confirmation */}
+      <AlertDialog open={showEscalateConfirm} onOpenChange={(o) => { setShowEscalateConfirm(o); if (!o) setBulkEscalateReason(""); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Escalate {selectedArr.length} email{selectedArr.length === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              These emails will be marked as <span className="font-semibold text-foreground">Escalated</span> and removed from the active workflow.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <textarea
+            value={bulkEscalateReason}
+            onChange={(e) => setBulkEscalateReason(e.target.value)}
+            placeholder="Reason for escalation (required)…"
+            className="w-full text-sm p-2 rounded-md bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/30 min-h-[80px]"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!bulkEscalateReason.trim()}
+              onClick={() => {
+                if (!bulkEscalateReason.trim()) return;
+                onBulkEscalate?.(selectedArr.map((e) => e.id), bulkEscalateReason.trim());
+                clearSelection();
+                setShowEscalateConfirm(false);
+                setBulkEscalateReason("");
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Escalate {selectedArr.length}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Email items */}
       <div className="flex-1 overflow-y-auto">
         {filtered.map((email) => {
