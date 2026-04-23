@@ -315,12 +315,33 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
             <div className="bg-secondary/50 rounded-lg p-4 max-h-48 overflow-y-auto mb-4">
               <pre className="text-xs whitespace-pre-wrap font-sans text-foreground/80">{replyDraft}</pre>
             </div>
+            {isCreditExceeded && (
+              <div className="mb-4 rounded-lg border-2 border-destructive bg-destructive/10 p-3">
+                <div className="flex items-start gap-2">
+                  <input
+                    id="credit-override"
+                    type="checkbox"
+                    checked={overrideAcknowledged}
+                    onChange={(e) => setOverrideAcknowledged(e.target.checked)}
+                    className="mt-0.5 accent-destructive"
+                  />
+                  <label htmlFor="credit-override" className="text-xs text-destructive font-medium leading-snug cursor-pointer">
+                    I acknowledge this order <span className="underline">exceeds the customer's credit limit</span> and accept responsibility for approving it. The overage will be charged against their account.
+                  </label>
+                </div>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
               {isCreditExceeded ? (
-                <div className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-destructive/10 text-destructive border border-destructive/20 cursor-not-allowed">
-                  <Ban className="w-4 h-4" /> Blocked — Credit Exceeded
-                </div>
+                <button
+                  onClick={handleApproveAndSend}
+                  disabled={isSending || checkingCredit || requiresOverride}
+                  className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground font-semibold hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md ring-2 ring-destructive/30"
+                >
+                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
+                  Override & Send Anyway
+                </button>
               ) : (
                 <button
                   onClick={handleApproveAndSend}
