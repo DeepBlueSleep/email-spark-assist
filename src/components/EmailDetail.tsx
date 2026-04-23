@@ -64,13 +64,12 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
 
   // Credit health — shown for credit-relevant intents when customer is mapped & has a limit
   const creditRelevantIntents = ["Order Creation", "Order Change", "Credit Enquiry"];
-  const showCreditHealth =
-    !!email.customer &&
-    typeof email.customer.credit_limit === "number" &&
-    email.customer.credit_limit > 0 &&
-    creditRelevantIntents.includes(email.intent);
   const creditLimit = Number(email.customer?.credit_limit ?? 0);
   const creditUsed = Number(email.customer?.credit_used ?? 0);
+  const showCreditHealth =
+    !!email.customer &&
+    creditLimit > 0 &&
+    creditRelevantIntents.includes(email.intent);
   const projected = creditUsed + (orderTotal || 0);
   const overLimit = projected > creditLimit;
   const utilization = creditLimit > 0 ? Math.min(100, Math.round((projected / creditLimit) * 100)) : 0;
