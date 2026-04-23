@@ -3,7 +3,7 @@ import { Email, Sentiment, Intent, Status } from "@/data/mockData";
 import { StatusDef } from "@/hooks/useStatuses";
 import {
   Search, Filter, Mail, ChevronDown, Paperclip, Archive, ArchiveRestore,
-  ChevronLeft, Trash2, MailOpen, X,
+  ChevronLeft, Trash2, MailOpen, X, Send, XCircle, AlertTriangle,
 } from "lucide-react";
 import { cn, formatLabel } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,16 +46,19 @@ interface EmailListProps {
   onBulkArchive?: (ids: string[], archived: boolean) => void;
   onBulkDelete?: (ids: string[]) => void;
   onBulkMarkRead?: (ids: string[], read: boolean) => void;
+  onBulkApprove?: (ids: string[]) => void;
+  onBulkEscalate?: (ids: string[], reason: string) => void;
   showArchiveBulk?: boolean;
   showDeleteBulk?: boolean;
+  showWorkflowBulk?: boolean;
   title?: string;
   onCollapse?: () => void;
 }
 
 export function EmailList({
   emails, selectedId, onSelect, statuses, onArchive, onDelete,
-  onBulkArchive, onBulkDelete, onBulkMarkRead,
-  showArchiveBulk = true, showDeleteBulk = false,
+  onBulkArchive, onBulkDelete, onBulkMarkRead, onBulkApprove, onBulkEscalate,
+  showArchiveBulk = true, showDeleteBulk = false, showWorkflowBulk = false,
   title = "Inbox", onCollapse,
 }: EmailListProps) {
   const [search, setSearch] = useState("");
