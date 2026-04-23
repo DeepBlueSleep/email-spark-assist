@@ -251,6 +251,35 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     }
   };
 
+  const actionedStatuses: Status[] = ["Replied", "Awaiting Customer", "Escalated"];
+  const isActioned = actionedStatuses.includes(email.status);
+
+  if (isActioned) {
+    const label =
+      email.status === "Replied"
+        ? "Reply sent — no further action needed"
+        : email.status === "Awaiting Customer"
+        ? "Information requested — awaiting customer response"
+        : "Escalated — handled outside this workflow";
+    const Icon =
+      email.status === "Replied" ? Check : email.status === "Awaiting Customer" ? HelpCircle : XCircle;
+    const tone =
+      email.status === "Replied"
+        ? "text-sentiment-positive bg-sentiment-positive/10 border-sentiment-positive/20"
+        : email.status === "Awaiting Customer"
+        ? "text-status-awaiting bg-status-awaiting/10 border-status-awaiting/30"
+        : "text-destructive bg-destructive/10 border-destructive/20";
+    return (
+      <div className="bg-card rounded-xl shadow-card p-6">
+        <h3 className="font-semibold mb-4">Actions</h3>
+        <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium ${tone}`}>
+          <Icon className="w-4 h-4" />
+          {label}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-card rounded-xl shadow-card p-6">
       <h3 className="font-semibold mb-4">Actions</h3>
