@@ -33,14 +33,21 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   const [isSending, setIsSending] = useState(false);
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
   const [checkingCredit, setCheckingCredit] = useState(false);
+  const [overrideAcknowledged, setOverrideAcknowledged] = useState(false);
   const [clarificationMsg, setClarificationMsg] = useState(
     `Dear ${email.customer_name},\n\nThank you for your email. We need some additional information to process your request:\n\n- [Please specify details]\n\nCould you please provide these details at your earliest convenience?\n\nBest regards,\nOrder Processing Team`
   );
+
+  const creditRelevantIntents = ["Order Creation", "Order Change", "Credit Enquiry"];
+  const isCreditRelevant = creditRelevantIntents.includes(email.intent);
+  const customerCreditLimit = Number(email.customer?.credit_limit ?? 0);
+  const needsCreditSetup = isCreditRelevant && (!email.customer || customerCreditLimit <= 0);
 
   // Simulate credit check when confirm dialog opens
   useEffect(() => {
     if (!showConfirm) {
       setCreditCheck(null);
+      setOverrideAcknowledged(false);
       return;
     }
     async function runCreditCheck() {
@@ -90,9 +97,10 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   }, [showConfirm, email.email, orderTotal]);
 
   const isCreditExceeded = creditCheck?.status === "exceeded";
+  const requiresOverride = isCreditExceeded && !overrideAcknowledged;
 
   const handleApproveAndSend = async () => {
-    if (isCreditExceeded) return;
+    if (requiresOverride) return;
     setIsSending(true);
     try {
       let resolvedCustomerId = email.customer_id || creditCheck?.customer_id || null;
