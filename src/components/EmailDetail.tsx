@@ -8,7 +8,10 @@ import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
 import { AttachmentsPanel } from "./AttachmentsPanel";
 import { Badge } from "./ui/badge";
-import { User, Clock, Paperclip, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Button } from "./ui/button";
+import { User, Clock, Paperclip, ShieldCheck, ShieldAlert, ShieldQuestion, UserPlus, Loader2 } from "lucide-react";
+import { invokeFunction } from "@/lib/api";
+import { toast } from "sonner";
 
 interface EmailDetailProps {
   email: Email;
@@ -62,18 +65,65 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const hasAttachments = email.attachments && email.attachments.length > 0;
   const isBoxx = email.customer?.is_boxx || email.customer_name.startsWith("BOXX -");
 
-  // Credit health — shown for credit-relevant intents when customer is mapped & has a limit
+  // Credit health visibility
   const creditRelevantIntents = ["Order Creation", "Order Change", "Credit Enquiry"];
+  const isCreditRelevant = creditRelevantIntents.includes(email.intent);
+  const hasCustomer = !!email.customer;
   const creditLimit = Number(email.customer?.credit_limit ?? 0);
   const creditUsed = Number(email.customer?.credit_used ?? 0);
-  const showCreditHealth =
-    !!email.customer &&
-    creditLimit > 0 &&
-    creditRelevantIntents.includes(email.intent);
+  const hasCreditHistory = hasCustomer && creditLimit > 0;
   const projected = creditUsed + (orderTotal || 0);
-  const overLimit = projected > creditLimit;
+  const overLimit = hasCreditHistory && projected > creditLimit;
   const utilization = creditLimit > 0 ? Math.min(100, Math.round((projected / creditLimit) * 100)) : 0;
   const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [initializingCredit, setInitializingCredit] = useState(false);
+
+  const handleCreateCustomer = async () => {
+    setCreatingCustomer(true);
+    try {
+      await invokeFunction("api-customers", {
+        method: "POST",
+        body: {
+          name: email.customer_name || "Unknown",
+          email: email.email,
+          credit_limit: 0,
+          credit_used: 0,
+          credit_terms: "Net 30",
+          notes: "Auto-created from email — no credit history yet.",
+        },
+      });
+      toast.success("Customer record created with empty credit history.");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e: any) {
+      toast.error(`Failed to create customer: ${e.message || e}`);
+    } finally {
+      setCreatingCustomer(false);
+    }
+  };
+
+  const handleInitializeCredit = async () => {
+    if (!email.customer) return;
+    setInitializingCredit(true);
+    try {
+      await invokeFunction("api-customers", {
+        method: "PATCH",
+        body: {
+          id: email.customer.id,
+          credit_limit: 0,
+          credit_used: 0,
+          credit_terms: email.customer.credit_terms || "Net 30",
+        },
+      });
+      toast.success("Credit history initialized. Set a limit in Customers to enable orders.");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e: any) {
+      toast.error(`Failed to initialize credit: ${e.message || e}`);
+    } finally {
+      setInitializingCredit(false);
+    }
+  };
 
   return (
     <div className="flex-1 flex min-h-0">
@@ -114,50 +164,106 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
           )}
         </div>
 
-        {/* Credit Health — only for credit-relevant intents with mapped customer */}
-        {showCreditHealth && (
-          <div className={`rounded-xl border p-4 shadow-card ${overLimit ? "bg-destructive/5 border-destructive/30" : "bg-emerald-500/5 border-emerald-500/30"}`}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                {overLimit ? (
-                  <ShieldAlert className="w-5 h-5 text-destructive mt-0.5" />
-                ) : (
-                  <ShieldCheck className="w-5 h-5 text-emerald-600 mt-0.5" />
-                )}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold">Credit Health</h3>
-                    <Badge
-                      variant="outline"
-                      className={overLimit
-                        ? "bg-destructive/10 text-destructive border-destructive/40 text-[10px] px-1.5 py-0"
-                        : "bg-emerald-500/10 text-emerald-700 border-emerald-500/40 text-[10px] px-1.5 py-0"}
-                    >
-                      {overLimit ? "Over Limit" : "Within Limit"}
-                    </Badge>
+        {/* Credit Health — for credit-relevant intents */}
+        {isCreditRelevant && (
+          hasCreditHistory ? (
+            <div className={`rounded-xl border p-4 shadow-card ${overLimit ? "bg-destructive/5 border-destructive/30" : "bg-emerald-500/5 border-emerald-500/30"}`}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  {overLimit ? (
+                    <ShieldAlert className="w-5 h-5 text-destructive mt-0.5" />
+                  ) : (
+                    <ShieldCheck className="w-5 h-5 text-emerald-600 mt-0.5" />
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold">Credit Health</h3>
+                      <Badge
+                        variant="outline"
+                        className={overLimit
+                          ? "bg-destructive/10 text-destructive border-destructive/40 text-[10px] px-1.5 py-0"
+                          : "bg-emerald-500/10 text-emerald-700 border-emerald-500/40 text-[10px] px-1.5 py-0"}
+                      >
+                        {overLimit ? "Over Limit" : "Within Limit"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {fmt(creditUsed)} used
+                      {orderTotal > 0 && <> + {fmt(orderTotal)} draft</>}
+                      {" "}of {fmt(creditLimit)} limit
+                      {email.customer?.credit_terms && <> · {email.customer.credit_terms}</>}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {fmt(creditUsed)} used
-                    {orderTotal > 0 && <> + {fmt(orderTotal)} draft</>}
-                    {" "}of {fmt(creditLimit)} limit
-                    {email.customer?.credit_terms && <> · {email.customer.credit_terms}</>}
-                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className={`text-lg font-semibold tabular-nums ${overLimit ? "text-destructive" : "text-emerald-700"}`}>
+                    {utilization}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Utilization</div>
                 </div>
               </div>
-              <div className="text-right shrink-0">
-                <div className={`text-lg font-semibold tabular-nums ${overLimit ? "text-destructive" : "text-emerald-700"}`}>
-                  {utilization}%
-                </div>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Utilization</div>
+              <div className="mt-3 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full transition-all ${overLimit ? "bg-destructive" : "bg-emerald-500"}`}
+                  style={{ width: `${utilization}%` }}
+                />
               </div>
             </div>
-            <div className="mt-3 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className={`h-full transition-all ${overLimit ? "bg-destructive" : "bg-emerald-500"}`}
-                style={{ width: `${utilization}%` }}
-              />
+          ) : (
+            <div className="rounded-xl border p-4 shadow-card bg-amber-500/5 border-amber-500/30">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <ShieldQuestion className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold">Credit Health</h3>
+                      <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/40 text-[10px] px-1.5 py-0">
+                        {hasCustomer ? "No Credit History" : "No Customer Record"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {hasCustomer
+                        ? "Customer exists but has no credit limit set. Initialize an empty credit history to begin tracking."
+                        : "This sender is not in the customer database. Create a record with an empty credit history before approving any orders."}
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  {hasCustomer ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleInitializeCredit}
+                      disabled={initializingCredit}
+                      className="border-amber-500/40 hover:bg-amber-500/10"
+                    >
+                      {initializingCredit ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      Initialize Credit History
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCreateCustomer}
+                      disabled={creatingCustomer}
+                      className="border-amber-500/40 hover:bg-amber-500/10"
+                    >
+                      {creatingCustomer ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      Create Customer Record
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )
         )}
 
         {/* AI Analysis — always shown */}
