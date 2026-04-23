@@ -239,5 +239,21 @@ export function useEmails() {
     [usingLiveData]
   );
 
-  return { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail, bulkDelete, bulkSetArchived, bulkMarkRead };
+  const bulkSetStatus = useCallback(
+    async (ids: string[], status: Status) => {
+      if (ids.length === 0) return;
+      const set = new Set(ids);
+      setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, status } : e)));
+      if (usingLiveData) {
+        await Promise.all(
+          ids.map((id) =>
+            invokeFunction("api-emails", { method: "PATCH", body: { id, status } }).catch(console.error)
+          )
+        );
+      }
+    },
+    [usingLiveData]
+  );
+
+  return { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail, bulkDelete, bulkSetArchived, bulkMarkRead, bulkSetStatus };
 }
