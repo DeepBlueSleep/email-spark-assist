@@ -371,7 +371,41 @@ Deno.serve(async (req) => {
       });
     }
 
-    return json({ error: "Not found", available_endpoints: ["/customers", "/stock", "/invoices", "/payments", "/credit-check"] }, 404);
+    // ── WORKFLOW ACTIONS (temporary stubs that "work") ─────────────────
+    // Accepts approve-order / request-info / escalate from the dashboard.
+    // Logs the payload and returns a deterministic acknowledgement so the UI
+    // flow (toast + status update) completes end-to-end.
+    if (resource === "workflow" && req.method === "POST") {
+      const action = resourceId; // "approve-order" | "request-info" | "escalate"
+      const allowed = new Set(["approve-order", "request-info", "escalate"]);
+      if (!action || !allowed.has(action)) {
+        return json({ error: "Unknown workflow action", allowed: [...allowed] }, 404);
+      }
+
+      const payload = await req.json().catch(() => ({}));
+      const refPrefix =
+        action === "approve-order" ? "SO" :
+        action === "request-info" ? "INFO" : "ESC";
+      const reference = `${refPrefix}-${Date.now().toString().slice(-8)}`;
+
+      console.log(`[mock-autocount] workflow/${action}`, {
+        reference,
+        email_id: payload.email_id,
+        customer: payload.customer_name,
+        intent: payload.intent,
+        order_total: payload.order_total,
+      });
+
+      return json({
+        success: true,
+        action,
+        reference,
+        received_at: new Date().toISOString(),
+        echo: payload,
+      });
+    }
+
+    return json({ error: "Not found", available_endpoints: ["/customers", "/stock", "/invoices", "/payments", "/credit-check", "/workflow/approve-order", "/workflow/request-info", "/workflow/escalate"] }, 404);
 
   } catch (err) {
     console.error("Mock Autocount error:", err);
