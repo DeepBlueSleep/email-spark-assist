@@ -3,7 +3,7 @@ import { Email, Status } from "@/data/mockData";
 import type { DraftOrderItem } from "./DraftOrder";
 import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck, Ban, UserPlus } from "lucide-react";
 import { invokeFunction } from "@/lib/api";
-import { pushApprovedOrder, pushRequestInfo, pushEscalation } from "@/lib/autocount";
+import { pushApprovedOrder, pushRequestInfo, pushEscalation, pushStockInProcess } from "@/lib/autocount";
 import { toast } from "sonner";
 
 interface ActionButtonsProps {
