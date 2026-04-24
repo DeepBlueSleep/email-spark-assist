@@ -108,53 +108,12 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   const requiresOverride = isCreditExceeded && !overrideAcknowledged;
 
   const handleApproveAndSend = async () => {
-    if (requiresOverride) return;
     setIsSending(true);
     try {
-      let resolvedCustomerId = email.customer_id || creditCheck?.customer_id || null;
-      let resolvedCustomerCode = email.customer?.code || null;
-
-      // If no customer mapped, create one now and charge the order against their fresh account
-      if (creditCheck?.status === "unknown") {
-        try {
-          const created = await invokeFunction("api-customers", {
-            method: "POST",
-            body: {
-              name: email.customer_name || "Unknown",
-              email: email.email,
-              credit_limit: 0,
-              credit_used: orderTotal,
-              credit_terms: "Net 30",
-              notes: `Auto-created from email approval on ${new Date().toISOString().slice(0, 10)}`,
-            },
-          });
-          resolvedCustomerId = created.customer?.id || null;
-          resolvedCustomerCode = created.customer?.code || null;
-          // Link the email to the new customer record
-          if (resolvedCustomerId) {
-            await invokeFunction("api-emails", {
-              method: "PATCH",
-              body: { id: email.id, customer_id: resolvedCustomerId },
-            }).catch(() => {});
-          }
-          toast.success(`New customer profile created for ${email.customer_name}`);
-        } catch (custErr) {
-          console.warn("Failed to auto-create customer:", custErr);
-          toast.error("Could not create customer profile — order will still send");
-        }
-      } else if (resolvedCustomerId && orderTotal > 0) {
-        // Existing customer: increment credit_used by the new order amount
-        const newUsed = (Number(creditCheck?.credit_used) || 0) + orderTotal;
-        await invokeFunction("api-customers", {
-          method: "PATCH",
-          body: { id: resolvedCustomerId, credit_used: newUsed },
-        }).catch((e) => console.warn("Failed to update credit_used:", e));
-      }
-
-      // Push approved order to Autocount (stub — endpoint not live yet)
-      await pushApprovedOrder({
+      // Stub: HTTP request to Autocount API (not wired to a real endpoint yet)
+      const autocountPayload = {
         email_id: email.id,
-        customer_code: resolvedCustomerCode,
+        customer_code: email.customer?.code || null,
         customer_name: email.customer_name,
         customer_email: email.email,
         subject: email.subject,
@@ -169,13 +128,18 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           Qty: item.quantity,
           UnitPrice: item.price,
         })),
-        credit_check: creditCheck ? {
-          status: creditCheck.status,
-          credit_limit: Number(creditCheck.credit_limit),
-          credit_used: Number(creditCheck.credit_used),
-          order_total: Number(creditCheck.order_total),
-        } : null,
-      });
+      };
+
+      try {
+        await fetch("https://api.autocount.example.com/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(autocountPayload),
+        });
+      } catch (httpErr) {
+        // Endpoint not live yet — log and continue
+        console.info("[Autocount stub] would POST:", autocountPayload, httpErr);
+      }
 
       // Update email status
       await invokeFunction("api-emails", {
@@ -183,10 +147,10 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         body: { id: email.id, status: "Replied", ai_reply_draft: replyDraft },
       });
       onStatusChange(email.id, "Replied");
-      toast.success(`Quotation sent to ${email.customer_name} (${selectedTone} tone)`);
+      toast.success(`Order sent to Autocount for ${email.customer_name}`);
       setShowConfirm(false);
     } catch (err) {
-      toast.error("Failed to send reply");
+      toast.error("Failed to send order");
     } finally {
       setIsSending(false);
     }
@@ -335,53 +299,14 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
       <h3 className="font-semibold mb-4">Actions</h3>
 
       <div className="flex items-center gap-3 flex-wrap">
-        {needsCreditSetup ? (
-          <div
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted text-muted-foreground font-medium text-sm cursor-not-allowed"
-            title={!email.customer ? "Create a customer record first" : "Initialize this customer's credit history first"}
-          >
-            <Ban className="w-4 h-4" /> Approve & Send — {email.customer ? "Credit Setup Required" : "No Customer Record"}
-          </div>
-        ) : (
-          <button
-            onClick={() => hasStockIssue ? setShowStockReview(true) : setShowConfirm(true)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity ${
-              hasStockIssue
-                ? "bg-amber-500 text-white"
-                : "bg-sentiment-positive text-primary-foreground"
-            }`}
-            title={hasStockIssue ? "Stock unavailable — review and open a stock-in-process case" : undefined}
-          >
-            {hasStockIssue ? <AlertTriangle className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-            {hasStockIssue ? "Approve & Send — Stock Review Required" : "Approve & Send"}
-          </button>
-        )}
         <button
-          onClick={() => setShowRequestInfo(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-status-awaiting/30 text-status-awaiting font-medium text-sm hover:bg-status-awaiting/5 transition-colors"
+          onClick={() => setShowConfirm(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm bg-sentiment-positive text-primary-foreground hover:opacity-90 transition-opacity"
         >
-          <HelpCircle className="w-4 h-4" /> Request More Info
-        </button>
-        <button
-          onClick={() => setShowEscalate(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-destructive/30 text-destructive font-medium text-sm hover:bg-destructive/5 transition-colors"
-        >
-          <XCircle className="w-4 h-4" /> Reject / Escalate
+          <Send className="w-4 h-4" />
+          Approve and Send to Autocount
         </button>
       </div>
-      {needsCreditSetup && (
-        <p className="mt-3 text-xs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
-          ⚠ {email.customer
-            ? "This customer has no credit history. Use the Credit Health card above to initialize before approving."
-            : "This sender is not in the customer database. Use the Credit Health card above to create a record before approving."}
-        </p>
-      )}
-      {!needsCreditSetup && hasStockIssue && (
-        <p className="mt-3 text-xs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
-          ⚠ {insufficientStockItems.length} item{insufficientStockItems.length !== 1 ? "s have" : " has"} insufficient stock.
-          Approving will open a Stock-In-Process case for admin restock review instead of sending the order.
-        </p>
-      )}
 
       {showStockReview && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowStockReview(false)}>
@@ -425,93 +350,25 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
       {showConfirm && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowConfirm(false)}>
           <div className="bg-card rounded-xl shadow-elevated p-6 max-w-lg w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <h4 className="text-lg font-semibold mb-2">Confirm & Send Reply</h4>
+            <h4 className="text-lg font-semibold mb-2">Send Order to Autocount</h4>
             <p className="text-sm text-muted-foreground mb-3">
-              Send this <span className="font-medium text-foreground">{selectedTone}</span> reply to <span className="font-medium text-foreground">{email.customer_name}</span>?
+              This will submit the approved order for <span className="font-medium text-foreground">{email.customer_name}</span> to the Autocount API and send the <span className="font-medium text-foreground">{selectedTone}</span> reply.
             </p>
-
-            {/* Credit Check Result */}
-            {orderTotal > 0 && (
-              <div className="mb-4">
-                {checkingCredit ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg p-3">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Checking credit terms…
-                  </div>
-                ) : creditCheck && (
-                  <div className={`rounded-lg p-3 text-xs space-y-1.5 ${
-                    creditCheck.status === "exceeded"
-                      ? "bg-destructive/10 border border-destructive/20"
-                      : creditCheck.status === "warning"
-                      ? "bg-amber-500/10 border border-amber-500/20"
-                      : creditCheck.status === "unknown"
-                      ? "bg-primary/10 border border-primary/20"
-                      : "bg-sentiment-positive/10 border border-sentiment-positive/20"
-                  }`}>
-                    <div className="flex items-center gap-2 font-semibold">
-                      {creditCheck.status === "exceeded" ? (
-                        <><AlertTriangle className="w-4 h-4 text-destructive" /><span className="text-destructive">Credit Limit Exceeded</span></>
-                      ) : creditCheck.status === "warning" ? (
-                        <><AlertTriangle className="w-4 h-4 text-amber-600" /><span className="text-amber-600">Credit Warning</span></>
-                      ) : creditCheck.status === "unknown" ? (
-                        <><UserPlus className="w-4 h-4 text-primary" /><span className="text-primary">New Customer — Will Be Created</span></>
-                      ) : (
-                        <><ShieldCheck className="w-4 h-4 text-sentiment-positive" /><span className="text-sentiment-positive">Credit Check Passed</span></>
-                      )}
-                    </div>
-                    <p className="text-muted-foreground">{creditCheck.message}</p>
-                    {creditCheck.credit_limit > 0 && (
-                      <div className="flex gap-4 pt-1 text-muted-foreground">
-                        <span>Limit: <span className="font-medium text-foreground">${Number(creditCheck.credit_limit).toFixed(2)}</span></span>
-                        <span>Used: <span className="font-medium text-foreground">${Number(creditCheck.credit_used).toFixed(2)}</span></span>
-                        <span>Order: <span className="font-medium text-foreground">${Number(creditCheck.order_total).toFixed(2)}</span></span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="bg-secondary/50 rounded-lg p-4 max-h-48 overflow-y-auto mb-4">
               <pre className="text-xs whitespace-pre-wrap font-sans text-foreground/80">{replyDraft}</pre>
             </div>
-            {isCreditExceeded && (
-              <div className="mb-4 rounded-lg border-2 border-destructive bg-destructive/10 p-3">
-                <div className="flex items-start gap-2">
-                  <input
-                    id="credit-override"
-                    type="checkbox"
-                    checked={overrideAcknowledged}
-                    onChange={(e) => setOverrideAcknowledged(e.target.checked)}
-                    className="mt-0.5 accent-destructive"
-                  />
-                  <label htmlFor="credit-override" className="text-xs text-destructive font-medium leading-snug cursor-pointer">
-                    I acknowledge this order <span className="underline">exceeds the customer's credit limit</span> and accept responsibility for approving it. The overage will be charged against their account.
-                  </label>
-                </div>
-              </div>
-            )}
+
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
-              {isCreditExceeded ? (
-                <button
-                  onClick={handleApproveAndSend}
-                  disabled={isSending || checkingCredit || requiresOverride}
-                  className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground font-semibold hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md ring-2 ring-destructive/30"
-                >
-                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
-                  Override & Send Anyway
-                </button>
-              ) : (
-                <button
-                  onClick={handleApproveAndSend}
-                  disabled={isSending || checkingCredit}
-                  className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-sentiment-positive text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                >
-                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  Confirm & Send
-                </button>
-              )}
+              <button
+                onClick={handleApproveAndSend}
+                disabled={isSending}
+                className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-sentiment-positive text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Approve and Send to Autocount
+              </button>
             </div>
           </div>
         </div>
