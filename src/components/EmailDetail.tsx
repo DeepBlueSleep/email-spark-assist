@@ -13,6 +13,33 @@ import { Button } from "./ui/button";
 import { User, Clock, Paperclip, ShieldCheck, ShieldAlert, ShieldQuestion, UserPlus, Loader2 } from "lucide-react";
 import { invokeFunction } from "@/lib/api";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
+
+// Detect if a body string contains HTML markup
+const looksLikeHtml = (s: string) => /<\/?[a-z][\s\S]*>/i.test(s);
+
+// Convert plain text to safe HTML: escape, linkify URLs, preserve newlines
+const plainTextToHtml = (s: string) => {
+  const escaped = s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  const linked = escaped.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-primary underline">$1</a>'
+  );
+  return linked.replace(/\n/g, "<br/>");
+};
+
+const renderEmailBody = (body: string) => {
+  const html = looksLikeHtml(body) ? body : plainTextToHtml(body);
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    ADD_ATTR: ["target", "rel"],
+    FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form", "input"],
+    FORBID_ATTR: ["onerror", "onload", "onclick"],
+  });
+};
 
 interface EmailDetailProps {
   email: Email;
@@ -116,7 +143,10 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
             </div>
           </div>
           <div className="bg-secondary/50 rounded-lg p-4 max-h-60 overflow-y-auto">
-            <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed text-foreground/90">{email.body}</pre>
+            <div
+              className="email-body text-sm leading-relaxed text-foreground/90 [&_a]:text-primary [&_a]:underline [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_img]:max-w-full [&_img]:h-auto [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-1 [&_th]:border [&_th]:border-border [&_th]:p-1"
+              dangerouslySetInnerHTML={{ __html: renderEmailBody(email.body) }}
+            />
           </div>
           {hasAttachments && (
             <button
