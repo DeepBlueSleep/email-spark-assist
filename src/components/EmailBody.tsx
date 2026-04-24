@@ -20,19 +20,70 @@ function looksLikeHtml(s: string): boolean {
   return /<(html|body|div|p|br|table|span|a|img|ul|ol|li|h[1-6]|strong|em|b|i|blockquote|style)\b[^>]*>/i.test(s);
 }
 
-// Convert plain text → safe HTML: escape, linkify, preserve newlines + runs of spaces
+// Convert plain text → safe HTML: escape, linkify, apply markdown-ish formatting,
+// preserve newlines + runs of spaces.
 function plainTextToHtml(s: string): string {
-  const escaped = s
+  // 1. Escape HTML special chars first
+  let out = s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-  const linked = escaped.replace(
+
+  // 2. Linkify URLs and bare emails
+  out = out.replace(
     /(https?:\/\/[^\s<]+)/g,
     '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
   );
-  // Preserve consecutive spaces (turn pairs into &nbsp; + space) and newlines
-  const spaced = linked.replace(/  /g, "\u00a0 ").replace(/\n/g, "<br/>");
-  return spaced;
+  out = out.replace(
+    /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+    '<a href="mailto:$1">$1</a>'
+  );
+
+  // 3. Inline markdown-style emphasis
+  //    **bold** / __bold__
+  out = out.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/__([^_\n]+)__/g, "<strong>$1</strong>");
+  //    *italic* / _italic_  (avoid matching inside words)
+  out = out.replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?;:]|$)/g, "$1<em>$2</em>");
+  out = out.replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,!?;:]|$)/g, "$1<em>$2</em>");
+
+  // 4. Process line-by-line for lists + line breaks
+  const lines = out.split(/\r?\n/);
+  const html: string[] = [];
+  let listType: "ul" | "ol" | null = null;
+  const closeList = () => {
+    if (listType) {
+      html.push(`</${listType}>`);
+      listType = null;
+    }
+  };
+  for (const raw of lines) {
+    const line = raw;
+    const ulMatch = /^\s*[-*•]\s+(.*)$/.exec(line);
+    const olMatch = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
+    if (ulMatch) {
+      if (listType !== "ul") {
+        closeList();
+        html.push("<ul>");
+        listType = "ul";
+      }
+      html.push(`<li>${ulMatch[1]}</li>`);
+    } else if (olMatch) {
+      if (listType !== "ol") {
+        closeList();
+        html.push("<ol>");
+        listType = "ol";
+      }
+      html.push(`<li>${olMatch[2]}</li>`);
+    } else {
+      closeList();
+      // Preserve runs of spaces
+      const preserved = line.replace(/ {2,}/g, (m) => "\u00a0".repeat(m.length));
+      html.push(preserved + "<br/>");
+    }
+  }
+  closeList();
+  return html.join("");
 }
 
 // Build a fully self-contained HTML doc to inject into an iframe
