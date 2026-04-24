@@ -263,6 +263,15 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
           onClose={() => setShowAttachments(false)}
         />
       )}
+
+      {/* Create Customer dialog */}
+      <CreateCustomerDialog
+        open={showCreateCustomer}
+        onOpenChange={setShowCreateCustomer}
+        defaultName={email.customer_name || ""}
+        defaultEmail={email.email}
+        onCreated={handleCustomerCreated}
+      />
     </div>
   );
 }
