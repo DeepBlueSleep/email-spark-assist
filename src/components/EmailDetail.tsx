@@ -61,30 +61,16 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const utilization = creditLimit > 0 ? Math.min(100, Math.round((projected / creditLimit) * 100)) : 0;
   const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
-  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [initializingCredit, setInitializingCredit] = useState(false);
 
-  const handleCreateCustomer = async () => {
-    setCreatingCustomer(true);
-    try {
-      await invokeFunction("api-customers", {
-        method: "POST",
-        body: {
-          name: email.customer_name || "Unknown",
-          email: email.email,
-          credit_limit: 0,
-          credit_used: 0,
-          credit_terms: "Net 30",
-          notes: "Auto-created from email — no credit history yet.",
-        },
-      });
-      toast.success("Customer record created with empty credit history.");
-      setTimeout(() => window.location.reload(), 600);
-    } catch (e: any) {
-      toast.error(`Failed to create customer: ${e.message || e}`);
-    } finally {
-      setCreatingCustomer(false);
-    }
+  const handleCreateCustomer = () => {
+    setShowCreateCustomer(true);
+  };
+
+  const handleCustomerCreated = () => {
+    // Reload to refresh the linked customer record on this email
+    setTimeout(() => window.location.reload(), 400);
   };
 
   const handleInitializeCredit = async () => {
