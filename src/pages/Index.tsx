@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useEmails } from "@/hooks/useEmails";
 import { useStatuses } from "@/hooks/useStatuses";
 import { EmailList } from "@/components/EmailList";
@@ -6,7 +7,7 @@ import { EmailDetail } from "@/components/EmailDetail";
 import { IrrelevantEmailView } from "@/components/IrrelevantEmailView";
 import {
   Bot, Inbox, Wifi, WifiOff, Mail,
-  Archive, Filter as FilterIcon, ChevronRight,
+  Archive, Filter as FilterIcon, ChevronRight, LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Email } from "@/data/mockData";
@@ -16,9 +17,25 @@ type InboxTab = "inbox" | "archived" | "other";
 const Index = () => {
   const { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail, bulkDelete, bulkSetArchived, bulkMarkRead, bulkSetStatus } = useEmails();
   const statuses = useStatuses();
+  const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<InboxTab>("inbox");
+  const [tab, setTab] = useState<InboxTab>((searchParams.get("tab") as InboxTab) || "inbox");
   const [listCollapsed, setListCollapsed] = useState(false);
+
+  // Honor ?email=<id> from dashboard drill-down
+  useEffect(() => {
+    const id = searchParams.get("email");
+    if (id && emails.some((e) => e.id === id)) {
+      setSelectedId(id);
+      const target = emails.find((e) => e.id === id);
+      if (target) {
+        if (target.is_relevant === false) setTab("other");
+        else if (target.is_archived) setTab("archived");
+        else setTab("inbox");
+        if (!target.is_read && target.is_relevant !== false) markRead(target.id, true);
+      }
+    }
+  }, [searchParams, emails, markRead]);
 
   const { inbox, archived, other, unreadCount } = useMemo(() => {
     const inbox: Email[] = [];
@@ -78,6 +95,14 @@ const Index = () => {
           </div>
           <h1 className="text-base font-semibold">AI Email Order Review</h1>
         </div>
+        <nav className="ml-6 flex items-center gap-1">
+          <Link to="/" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5">
+            <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
+          </Link>
+          <Link to="/inbox" className="px-3 py-1.5 rounded-md text-sm font-medium bg-muted text-foreground">
+            Inbox
+          </Link>
+        </nav>
         <span className="ml-4 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">MVP</span>
         <div className="ml-auto flex items-center gap-4">
           {usingLiveData ? (
