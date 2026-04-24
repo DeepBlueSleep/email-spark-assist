@@ -42,13 +42,13 @@ interface DraftOrderProps {
 
 function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[] = []): DraftOrderItem[] {
   return skus.map((sku) => {
-    // Find matching extracted order item by SKU code (item_code)
     const matchedOrder = orderItems.find(
       (oi) => oi.item_code && oi.item_code.toUpperCase() === sku.sku_code.toUpperCase()
     );
     const requestedQty = matchedOrder?.quantity || 1;
-    const stockInsufficient = requestedQty > sku.stock_level;
-    const finalQty = stockInsufficient ? sku.stock_level : requestedQty;
+    const outOfStock = (sku.stock_level ?? 0) <= 0;
+    const stockInsufficient = !outOfStock && requestedQty > sku.stock_level;
+    const finalQty = outOfStock ? 0 : (stockInsufficient ? sku.stock_level : requestedQty);
 
     return {
       id: `do-${sku.sku_code}`,
@@ -63,6 +63,7 @@ function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[
       quantity: finalQty,
       requested_quantity: requestedQty,
       stock_insufficient: stockInsufficient,
+      out_of_stock: outOfStock,
     };
   });
 }
