@@ -306,6 +306,31 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           <Send className="w-4 h-4" />
           Approve and Send to Autocount
         </button>
+        <button
+          onClick={() => setShowEscalate(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-border bg-card hover:bg-accent transition-colors"
+        >
+          <AlertTriangle className="w-4 h-4 text-amber-600" />
+          Escalate
+        </button>
+        <button
+          onClick={async () => {
+            onStatusChange(email.id, "Escalated");
+            try {
+              await invokeFunction("api-emails", {
+                method: "PATCH",
+                body: { id: email.id, status: "Escalated" },
+              });
+              toast.success("Email rejected");
+            } catch {
+              toast.error("Failed to reject email");
+            }
+          }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-destructive/30 text-destructive bg-card hover:bg-destructive/10 transition-colors"
+        >
+          <Ban className="w-4 h-4" />
+          Reject
+        </button>
       </div>
 
       {showStockReview && (
