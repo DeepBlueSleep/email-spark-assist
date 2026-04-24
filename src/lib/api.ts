@@ -34,10 +34,30 @@ export async function invokeFunction(functionName: string, options: InvokeOption
     fetchOptions.body = JSON.stringify(body);
   }
 
-  const response = await fetch(url, fetchOptions);
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new Error(`API error ${response.status}: ${errBody}`);
+  // Retry transient errors (503 cold starts, network blips) with backoff
+  const maxAttempts = 3;
+  let lastErr: any;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(url, fetchOptions);
+      if (response.ok) return response.json();
+
+      const errBody = await response.text();
+      // Retry only on transient server errors
+      if ((response.status === 503 || response.status === 502 || response.status === 504) && attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 400 * attempt));
+        continue;
+      }
+      throw new Error(`API error ${response.status}: ${errBody}`);
+    } catch (err: any) {
+      lastErr = err;
+      // Network errors — retry
+      if (attempt < maxAttempts && (err?.name === "TypeError" || /NetworkError|Failed to fetch/i.test(err?.message ?? ""))) {
+        await new Promise((r) => setTimeout(r, 400 * attempt));
+        continue;
+      }
+      throw err;
+    }
   }
-  return response.json();
+  throw lastErr ?? new Error("Request failed");
 }
