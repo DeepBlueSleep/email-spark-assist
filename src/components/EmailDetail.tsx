@@ -116,12 +116,7 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
               </div>
             </div>
           </div>
-          <div className="bg-secondary/50 rounded-lg p-4 max-h-60 overflow-y-auto">
-            <div
-              className="email-body text-sm leading-relaxed text-foreground/90 [&_a]:text-primary [&_a]:underline [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_img]:max-w-full [&_img]:h-auto [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-1 [&_th]:border [&_th]:border-border [&_th]:p-1"
-              dangerouslySetInnerHTML={{ __html: renderEmailBody(email.body) }}
-            />
-          </div>
+          <EmailBody body={email.body} />
           {hasAttachments && (
             <button
               onClick={() => setShowAttachments(!showAttachments)}
