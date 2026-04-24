@@ -79,8 +79,9 @@ export function useEmails() {
                 const normalizedCode = String(ref.sku_code ?? "").trim().toUpperCase();
                 if (!normalizedCode) return null;
                 const p = productsMap[normalizedCode];
-                // Skip if product doesn't exist, is inactive, or out of stock
-                if (!p || p.is_active === false || (p.stock_level ?? 0) <= 0) return null;
+                // Skip if product doesn't exist or is inactive. Out-of-stock items
+                // are kept so they are visible in the draft (but shown grayed out).
+                if (!p || p.is_active === false) return null;
                 return {
                   sku_code: p.sku_code,
                   name: p.name,

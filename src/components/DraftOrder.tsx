@@ -30,6 +30,7 @@ export interface DraftOrderItem {
   quantity: number;
   requested_quantity: number;
   stock_insufficient: boolean;
+  out_of_stock: boolean;
 }
 
 interface DraftOrderProps {
@@ -41,13 +42,13 @@ interface DraftOrderProps {
 
 function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[] = []): DraftOrderItem[] {
   return skus.map((sku) => {
-    // Find matching extracted order item by SKU code (item_code)
     const matchedOrder = orderItems.find(
       (oi) => oi.item_code && oi.item_code.toUpperCase() === sku.sku_code.toUpperCase()
     );
     const requestedQty = matchedOrder?.quantity || 1;
-    const stockInsufficient = requestedQty > sku.stock_level;
-    const finalQty = stockInsufficient ? sku.stock_level : requestedQty;
+    const outOfStock = (sku.stock_level ?? 0) <= 0;
+    const stockInsufficient = !outOfStock && requestedQty > sku.stock_level;
+    const finalQty = outOfStock ? 0 : (stockInsufficient ? sku.stock_level : requestedQty);
 
     return {
       id: `do-${sku.sku_code}`,
@@ -62,6 +63,7 @@ function buildDraftItems(skus: RecommendedSKU[], orderItems: ExtractedOrderItem[
       quantity: finalQty,
       requested_quantity: requestedQty,
       stock_insufficient: stockInsufficient,
+      out_of_stock: outOfStock,
     };
   });
 }
@@ -71,11 +73,12 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
     buildDraftItems(recommendedSkus, extractedOrderItems)
   );
 
-  // Report total and items to parent whenever items change
+  // Report total and items to parent — exclude out-of-stock items (visual only).
   useEffect(() => {
-    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const orderable = items.filter((i) => !i.out_of_stock);
+    const total = orderable.reduce((sum, item) => sum + item.price * item.quantity, 0);
     onTotalChange?.(total);
-    onItemsChange?.(items);
+    onItemsChange?.(orderable);
   }, [items, onTotalChange, onItemsChange]);
   const [removed, setRemoved] = useState<DraftOrderItem[]>([]);
   const [showSearch, setShowSearch] = useState(false);
@@ -148,6 +151,7 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
       quantity: 1,
       requested_quantity: 1,
       stock_insufficient: false,
+      out_of_stock: (product.stock_level ?? 0) <= 0,
     };
     setItems((prev) => [...prev, newItem]);
     setShowSearch(false);
@@ -263,30 +267,46 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id} className="border-b border-border/50 hover:bg-accent/30">
+                <tr
+                  key={item.id}
+                  className={cn(
+                    "border-b border-border/50 hover:bg-accent/30",
+                    item.out_of_stock && "opacity-50 bg-muted/30 hover:bg-muted/40"
+                  )}
+                >
                   <td className="py-2 px-2">
-                    <input value={item.sku_code} onChange={(e) => updateItem(item.id, "sku_code", e.target.value)} className="w-24 text-xs font-mono px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    <input disabled={item.out_of_stock} value={item.sku_code} onChange={(e) => updateItem(item.id, "sku_code", e.target.value)} className="w-24 text-xs font-mono px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
                   </td>
                   <td className="py-2 px-2">
-                    <input value={item.name} onChange={(e) => updateItem(item.id, "name", e.target.value)} className="w-full min-w-[120px] text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    <input disabled={item.out_of_stock} value={item.name} onChange={(e) => updateItem(item.id, "name", e.target.value)} className="w-full min-w-[120px] text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
+                    {item.out_of_stock && (
+                      <div className="flex items-center gap-1 mt-1 text-[10px] font-medium text-destructive">
+                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                        <span>Out of stock — not included in order</span>
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 px-2">
                     <div className="flex flex-wrap gap-1">
-                      <input value={item.color} onChange={(e) => updateItem(item.id, "color", e.target.value)} placeholder="Color" className="w-16 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30" />
-                      <input value={item.size} onChange={(e) => updateItem(item.id, "size", e.target.value)} placeholder="Size" className="w-20 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                      <input disabled={item.out_of_stock} value={item.color} onChange={(e) => updateItem(item.id, "color", e.target.value)} placeholder="Color" className="w-16 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
+                      <input disabled={item.out_of_stock} value={item.size} onChange={(e) => updateItem(item.id, "size", e.target.value)} placeholder="Size" className="w-20 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
                     </div>
                   </td>
                   <td className="py-2 px-2">
-                    <input type="number" value={item.price} onChange={(e) => updateItem(item.id, "price", parseFloat(e.target.value) || 0)} className="w-16 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    <input type="number" disabled={item.out_of_stock} value={item.price} onChange={(e) => updateItem(item.id, "price", parseFloat(e.target.value) || 0)} className="w-16 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
                   </td>
                   <td className="py-2 px-2">
-                    <span className={cn("text-xs", item.stock_level > 10 ? "text-sentiment-positive" : "text-sentiment-negative")}>
-                      {item.stock_level}
+                    <span className={cn("text-xs", item.out_of_stock ? "text-destructive font-medium" : item.stock_level > 10 ? "text-sentiment-positive" : "text-sentiment-negative")}>
+                      {item.out_of_stock ? "0" : item.stock_level}
                     </span>
                   </td>
                   <td className="py-2 px-2">
-                    <input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)} className="w-14 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
-                    {item.stock_insufficient && (
+                    {item.out_of_stock ? (
+                      <span className="text-xs text-muted-foreground italic">—</span>
+                    ) : (
+                      <input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)} className="w-14 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    )}
+                    {item.stock_insufficient && !item.out_of_stock && (
                       <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600">
                         <AlertTriangle className="w-3 h-3 shrink-0" />
                         <span>Requested {item.requested_quantity}, only {item.stock_level} in stock</span>
@@ -306,14 +326,14 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
         </div>
       )}
 
-      {items.length > 0 && (
+      {items.filter((i) => !i.out_of_stock).length > 0 && (
         <div className="border-t border-border pt-4">
           <div className="flex items-center gap-2 mb-3">
             <FileText className="w-4 h-4 text-primary" />
             <span className="text-xs font-semibold">Quotation Summary</span>
           </div>
           <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
-            {items.map((item) => (
+            {items.filter((i) => !i.out_of_stock).map((item) => (
               <div key={item.id} className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">
                   {item.name} <span className="font-mono">({item.sku_code})</span> × {item.quantity}
@@ -321,10 +341,15 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
                 <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
               </div>
             ))}
+            {items.some((i) => i.out_of_stock) && (
+              <div className="text-[10px] text-muted-foreground italic pt-1">
+                Out-of-stock items shown above are excluded from this quotation.
+              </div>
+            )}
             <div className="border-t border-border pt-2 mt-2 flex items-center justify-between">
               <span className="text-sm font-semibold">Total</span>
               <span className="text-sm font-bold text-primary">
-                ${items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}
+                ${items.filter((i) => !i.out_of_stock).reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}
               </span>
             </div>
           </div>
