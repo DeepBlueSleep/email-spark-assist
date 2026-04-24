@@ -219,14 +219,9 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
                       size="sm"
                       variant="outline"
                       onClick={handleCreateCustomer}
-                      disabled={creatingCustomer}
                       className="border-amber-500/40 hover:bg-amber-500/10"
                     >
-                      {creatingCustomer ? (
-                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                      ) : (
-                        <UserPlus className="w-3.5 h-3.5 mr-1.5" />
-                      )}
+                      <UserPlus className="w-3.5 h-3.5 mr-1.5" />
                       Create Customer Record
                     </Button>
                   )}
