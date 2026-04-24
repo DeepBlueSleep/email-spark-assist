@@ -7,6 +7,7 @@ import type { DraftOrderItem } from "./DraftOrder";
 import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { CreateCustomerDialog } from "./CreateCustomerDialog";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { User, Clock, Paperclip, ShieldCheck, ShieldAlert, ShieldQuestion, UserPlus, Loader2 } from "lucide-react";
