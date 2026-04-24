@@ -8,6 +8,7 @@ const DEFAULT_STATUSES = [
   { key: "replied", display_name: "Replied", sort_order: 5, description: "Reply has been sent to the customer", is_active: true },
   { key: "escalated", display_name: "Escalated", sort_order: 6, description: "Escalated for manual handling", is_active: true },
   { key: "awaiting_customer", display_name: "Awaiting Customer", sort_order: 7, description: "Waiting for customer to respond", is_active: true },
+  { key: "stock_in_process", display_name: "Stock In Process", sort_order: 8, description: "Insufficient stock — pending admin restock review", is_active: true },
 ];
 
 async function ensureTable(sql: any) {

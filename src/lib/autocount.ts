@@ -200,3 +200,11 @@ export async function pushEscalation(payload: ACStatusActionPayload & {
 }) {
   return postStatusAction("workflow/escalate", payload);
 }
+
+/** Stock In Process → open a restock case for admin review when inventory is low/unavailable */
+export async function pushStockInProcess(payload: ACStatusActionPayload & {
+  insufficient_items: Array<{ ItemCode: string; Description: string; Requested: number; Available: number; Shortfall: number }>;
+  order_total: number;
+}) {
+  return postStatusAction("workflow/stock-in-process", payload);
+}

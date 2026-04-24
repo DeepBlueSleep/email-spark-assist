@@ -3,7 +3,7 @@ import { Email, Status } from "@/data/mockData";
 import type { DraftOrderItem } from "./DraftOrder";
 import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck, Ban, UserPlus } from "lucide-react";
 import { invokeFunction } from "@/lib/api";
-import { pushApprovedOrder, pushRequestInfo, pushEscalation } from "@/lib/autocount";
+import { pushApprovedOrder, pushRequestInfo, pushEscalation, pushStockInProcess } from "@/lib/autocount";
 import { toast } from "sonner";
 
 interface ActionButtonsProps {
@@ -29,14 +29,22 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   const [showConfirm, setShowConfirm] = useState(false);
   const [showEscalate, setShowEscalate] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
+  const [showStockReview, setShowStockReview] = useState(false);
   const [escalateReason, setEscalateReason] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isFilingStock, setIsFilingStock] = useState(false);
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
   const [checkingCredit, setCheckingCredit] = useState(false);
   const [overrideAcknowledged, setOverrideAcknowledged] = useState(false);
   const [clarificationMsg, setClarificationMsg] = useState(
     `Dear ${email.customer_name},\n\nThank you for your email. We need some additional information to process your request:\n\n- [Please specify details]\n\nCould you please provide these details at your earliest convenience?\n\nBest regards,\nOrder Processing Team`
   );
+
+  // Stock availability check — any draft item where requested qty exceeds stock_level (or stock is 0)
+  const insufficientStockItems = draftOrderItems.filter(
+    (it) => it.stock_level <= 0 || it.quantity > it.stock_level || it.requested_quantity > it.stock_level
+  );
+  const hasStockIssue = insufficientStockItems.length > 0;
 
   const creditRelevantIntents = ["Order Creation", "Order Change", "Credit Enquiry"];
   const isCreditRelevant = creditRelevantIntents.includes(email.intent);
@@ -251,7 +259,42 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     }
   };
 
-  const actionedStatuses: Status[] = ["Replied", "Awaiting Customer", "Escalated"];
+  const handleStockInProcess = async () => {
+    setIsFilingStock(true);
+    try {
+      pushStockInProcess({
+        email_id: email.id,
+        customer_code: email.customer?.code || null,
+        customer_name: email.customer_name,
+        customer_email: email.email,
+        subject: email.subject,
+        intent: email.intent,
+        triggered_at: new Date().toISOString(),
+        order_total: orderTotal,
+        insufficient_items: insufficientStockItems.map((it) => ({
+          ItemCode: it.sku_code,
+          Description: it.name,
+          Requested: it.requested_quantity,
+          Available: it.stock_level,
+          Shortfall: Math.max(0, it.requested_quantity - it.stock_level),
+        })),
+      }).catch((e) => console.warn("autocount stock-in-process log failed:", e));
+
+      onStatusChange(email.id, "Stock In Process");
+      await invokeFunction("api-emails", {
+        method: "PATCH",
+        body: { id: email.id, status: "Stock In Process" },
+      });
+      toast.success(`Stock-in-process case opened for admin review (${insufficientStockItems.length} item${insufficientStockItems.length !== 1 ? "s" : ""})`);
+      setShowStockReview(false);
+    } catch (err) {
+      toast.error("Failed to file stock-in-process case");
+    } finally {
+      setIsFilingStock(false);
+    }
+  };
+
+  const actionedStatuses: Status[] = ["Replied", "Awaiting Customer", "Escalated", "Stock In Process"];
   const isActioned = actionedStatuses.includes(email.status);
 
   if (isActioned) {
@@ -260,14 +303,21 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         ? "Reply sent — no further action needed"
         : email.status === "Awaiting Customer"
         ? "Information requested — awaiting customer response"
+        : email.status === "Stock In Process"
+        ? "Stock-in-process case opened — awaiting admin restock review"
         : "Escalated — handled outside this workflow";
     const Icon =
-      email.status === "Replied" ? Check : email.status === "Awaiting Customer" ? HelpCircle : XCircle;
+      email.status === "Replied" ? Check
+        : email.status === "Awaiting Customer" ? HelpCircle
+        : email.status === "Stock In Process" ? AlertTriangle
+        : XCircle;
     const tone =
       email.status === "Replied"
         ? "text-sentiment-positive bg-sentiment-positive/10 border-sentiment-positive/20"
         : email.status === "Awaiting Customer"
         ? "text-status-awaiting bg-status-awaiting/10 border-status-awaiting/30"
+        : email.status === "Stock In Process"
+        ? "text-amber-700 bg-amber-500/10 border-amber-500/30"
         : "text-destructive bg-destructive/10 border-destructive/20";
     return (
       <div className="bg-card rounded-xl shadow-card p-6">
@@ -294,10 +344,16 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           </div>
         ) : (
           <button
-            onClick={() => setShowConfirm(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-sentiment-positive text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+            onClick={() => hasStockIssue ? setShowStockReview(true) : setShowConfirm(true)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity ${
+              hasStockIssue
+                ? "bg-amber-500 text-white"
+                : "bg-sentiment-positive text-primary-foreground"
+            }`}
+            title={hasStockIssue ? "Stock unavailable — review and open a stock-in-process case" : undefined}
           >
-            <Send className="w-4 h-4" /> Approve & Send
+            {hasStockIssue ? <AlertTriangle className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+            {hasStockIssue ? "Approve & Send — Stock Review Required" : "Approve & Send"}
           </button>
         )}
         <button
@@ -319,6 +375,51 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
             ? "This customer has no credit history. Use the Credit Health card above to initialize before approving."
             : "This sender is not in the customer database. Use the Credit Health card above to create a record before approving."}
         </p>
+      )}
+      {!needsCreditSetup && hasStockIssue && (
+        <p className="mt-3 text-xs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
+          ⚠ {insufficientStockItems.length} item{insufficientStockItems.length !== 1 ? "s have" : " has"} insufficient stock.
+          Approving will open a Stock-In-Process case for admin restock review instead of sending the order.
+        </p>
+      )}
+
+      {showStockReview && (
+        <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowStockReview(false)}>
+          <div className="bg-card rounded-xl shadow-elevated p-6 max-w-lg w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <h4 className="text-lg font-semibold">Open Stock-In-Process Case</h4>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              The following items don't have enough stock to fulfil this order. Filing this case will route it to admin for restock review and notify the customer that their order is being processed.
+            </p>
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 max-h-56 overflow-y-auto mb-4 space-y-2">
+              {insufficientStockItems.map((it) => (
+                <div key={it.id} className="flex items-center justify-between text-xs">
+                  <div>
+                    <div className="font-medium">{it.name}</div>
+                    <div className="text-muted-foreground font-mono text-[10px]">{it.sku_code}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-amber-700 font-semibold">Requested {it.requested_quantity}</div>
+                    <div className="text-muted-foreground">Available {it.stock_level} · Short {Math.max(0, it.requested_quantity - it.stock_level)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowStockReview(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
+              <button
+                onClick={handleStockInProcess}
+                disabled={isFilingStock}
+                className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+              >
+                {isFilingStock ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
+                Open Stock-In-Process Case
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showConfirm && (
