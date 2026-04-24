@@ -20,19 +20,70 @@ function looksLikeHtml(s: string): boolean {
   return /<(html|body|div|p|br|table|span|a|img|ul|ol|li|h[1-6]|strong|em|b|i|blockquote|style)\b[^>]*>/i.test(s);
 }
 
-// Convert plain text → safe HTML: escape, linkify, preserve newlines + runs of spaces
+// Convert plain text → safe HTML: escape, linkify, apply markdown-ish formatting,
+// preserve newlines + runs of spaces.
 function plainTextToHtml(s: string): string {
-  const escaped = s
+  // 1. Escape HTML special chars first
+  let out = s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-  const linked = escaped.replace(
+
+  // 2. Linkify URLs and bare emails
+  out = out.replace(
     /(https?:\/\/[^\s<]+)/g,
     '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
   );
-  // Preserve consecutive spaces (turn pairs into &nbsp; + space) and newlines
-  const spaced = linked.replace(/  /g, "\u00a0 ").replace(/\n/g, "<br/>");
-  return spaced;
+  out = out.replace(
+    /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+    '<a href="mailto:$1">$1</a>'
+  );
+
+  // 3. Inline markdown-style emphasis
+  //    **bold** / __bold__
+  out = out.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/__([^_\n]+)__/g, "<strong>$1</strong>");
+  //    *italic* / _italic_  (avoid matching inside words)
+  out = out.replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?;:]|$)/g, "$1<em>$2</em>");
+  out = out.replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,!?;:]|$)/g, "$1<em>$2</em>");
+
+  // 4. Process line-by-line for lists + line breaks
+  const lines = out.split(/\r?\n/);
+  const html: string[] = [];
+  let listType: "ul" | "ol" | null = null;
+  const closeList = () => {
+    if (listType) {
+      html.push(`</${listType}>`);
+      listType = null;
+    }
+  };
+  for (const raw of lines) {
+    const line = raw;
+    const ulMatch = /^\s*[-*•]\s+(.*)$/.exec(line);
+    const olMatch = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
+    if (ulMatch) {
+      if (listType !== "ul") {
+        closeList();
+        html.push("<ul>");
+        listType = "ul";
+      }
+      html.push(`<li>${ulMatch[1]}</li>`);
+    } else if (olMatch) {
+      if (listType !== "ol") {
+        closeList();
+        html.push("<ol>");
+        listType = "ol";
+      }
+      html.push(`<li>${olMatch[2]}</li>`);
+    } else {
+      closeList();
+      // Preserve runs of spaces
+      const preserved = line.replace(/ {2,}/g, (m) => "\u00a0".repeat(m.length));
+      html.push(preserved + "<br/>");
+    }
+  }
+  closeList();
+  return html.join("");
 }
 
 // Build a fully self-contained HTML doc to inject into an iframe
@@ -46,7 +97,7 @@ function buildIframeDoc(rawBody: string): string {
         FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "input"],
         FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
       })
-    : `<pre style="white-space:pre-wrap;font-family:inherit;margin:0">${plainTextToHtml(decoded)}</pre>`;
+    : `<div class="plain">${plainTextToHtml(decoded)}</div>`;
 
   return `<!doctype html><html><head><meta charset="utf-8"><base target="_blank">
 <style>
@@ -57,6 +108,11 @@ function buildIframeDoc(rawBody: string): string {
   table{max-width:100%; border-collapse:collapse;}
   blockquote{border-left:3px solid #d1d5db; margin:0 0 0 .25rem; padding:.25rem 0 .25rem .75rem; color:#4b5563;}
   pre{white-space:pre-wrap; word-wrap:break-word;}
+  ul,ol{margin:.4rem 0 .4rem 1.25rem; padding:0;}
+  li{margin:.15rem 0;}
+  strong{font-weight:600;}
+  em{font-style:italic;}
+  .plain{white-space:normal;}
 </style></head><body>${inner}</body></html>`;
 }
 
@@ -100,7 +156,7 @@ export function EmailBody({ body }: EmailBodyProps) {
       <iframe
         ref={ref}
         title="Email body"
-        sandbox="allow-popups allow-popups-to-escape-sandbox"
+        sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
         srcDoc={doc}
         style={{ width: "100%", height, border: 0, display: "block", background: "transparent" }}
       />
