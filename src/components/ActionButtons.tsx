@@ -376,6 +376,51 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
             : "This sender is not in the customer database. Use the Credit Health card above to create a record before approving."}
         </p>
       )}
+      {!needsCreditSetup && hasStockIssue && (
+        <p className="mt-3 text-xs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
+          ⚠ {insufficientStockItems.length} item{insufficientStockItems.length !== 1 ? "s have" : " has"} insufficient stock.
+          Approving will open a Stock-In-Process case for admin restock review instead of sending the order.
+        </p>
+      )}
+
+      {showStockReview && (
+        <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowStockReview(false)}>
+          <div className="bg-card rounded-xl shadow-elevated p-6 max-w-lg w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <h4 className="text-lg font-semibold">Open Stock-In-Process Case</h4>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              The following items don't have enough stock to fulfil this order. Filing this case will route it to admin for restock review and notify the customer that their order is being processed.
+            </p>
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 max-h-56 overflow-y-auto mb-4 space-y-2">
+              {insufficientStockItems.map((it) => (
+                <div key={it.id} className="flex items-center justify-between text-xs">
+                  <div>
+                    <div className="font-medium">{it.name}</div>
+                    <div className="text-muted-foreground font-mono text-[10px]">{it.sku_code}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-amber-700 font-semibold">Requested {it.requested_quantity}</div>
+                    <div className="text-muted-foreground">Available {it.stock_level} · Short {Math.max(0, it.requested_quantity - it.stock_level)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowStockReview(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
+              <button
+                onClick={handleStockInProcess}
+                disabled={isFilingStock}
+                className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+              >
+                {isFilingStock ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
+                Open Stock-In-Process Case
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showConfirm && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowConfirm(false)}>
