@@ -335,53 +335,14 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
       <h3 className="font-semibold mb-4">Actions</h3>
 
       <div className="flex items-center gap-3 flex-wrap">
-        {needsCreditSetup ? (
-          <div
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted text-muted-foreground font-medium text-sm cursor-not-allowed"
-            title={!email.customer ? "Create a customer record first" : "Initialize this customer's credit history first"}
-          >
-            <Ban className="w-4 h-4" /> Approve & Send — {email.customer ? "Credit Setup Required" : "No Customer Record"}
-          </div>
-        ) : (
-          <button
-            onClick={() => hasStockIssue ? setShowStockReview(true) : setShowConfirm(true)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity ${
-              hasStockIssue
-                ? "bg-amber-500 text-white"
-                : "bg-sentiment-positive text-primary-foreground"
-            }`}
-            title={hasStockIssue ? "Stock unavailable — review and open a stock-in-process case" : undefined}
-          >
-            {hasStockIssue ? <AlertTriangle className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-            {hasStockIssue ? "Approve & Send — Stock Review Required" : "Approve & Send"}
-          </button>
-        )}
         <button
-          onClick={() => setShowRequestInfo(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-status-awaiting/30 text-status-awaiting font-medium text-sm hover:bg-status-awaiting/5 transition-colors"
+          onClick={() => setShowConfirm(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm bg-sentiment-positive text-primary-foreground hover:opacity-90 transition-opacity"
         >
-          <HelpCircle className="w-4 h-4" /> Request More Info
-        </button>
-        <button
-          onClick={() => setShowEscalate(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-destructive/30 text-destructive font-medium text-sm hover:bg-destructive/5 transition-colors"
-        >
-          <XCircle className="w-4 h-4" /> Reject / Escalate
+          <Send className="w-4 h-4" />
+          Approve and Send to Autocount
         </button>
       </div>
-      {needsCreditSetup && (
-        <p className="mt-3 text-xs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
-          ⚠ {email.customer
-            ? "This customer has no credit history. Use the Credit Health card above to initialize before approving."
-            : "This sender is not in the customer database. Use the Credit Health card above to create a record before approving."}
-        </p>
-      )}
-      {!needsCreditSetup && hasStockIssue && (
-        <p className="mt-3 text-xs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
-          ⚠ {insufficientStockItems.length} item{insufficientStockItems.length !== 1 ? "s have" : " has"} insufficient stock.
-          Approving will open a Stock-In-Process case for admin restock review instead of sending the order.
-        </p>
-      )}
 
       {showStockReview && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowStockReview(false)}>
