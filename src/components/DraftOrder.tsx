@@ -267,30 +267,46 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id} className="border-b border-border/50 hover:bg-accent/30">
+                <tr
+                  key={item.id}
+                  className={cn(
+                    "border-b border-border/50 hover:bg-accent/30",
+                    item.out_of_stock && "opacity-50 bg-muted/30 hover:bg-muted/40"
+                  )}
+                >
                   <td className="py-2 px-2">
-                    <input value={item.sku_code} onChange={(e) => updateItem(item.id, "sku_code", e.target.value)} className="w-24 text-xs font-mono px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    <input disabled={item.out_of_stock} value={item.sku_code} onChange={(e) => updateItem(item.id, "sku_code", e.target.value)} className="w-24 text-xs font-mono px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
                   </td>
                   <td className="py-2 px-2">
-                    <input value={item.name} onChange={(e) => updateItem(item.id, "name", e.target.value)} className="w-full min-w-[120px] text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    <input disabled={item.out_of_stock} value={item.name} onChange={(e) => updateItem(item.id, "name", e.target.value)} className="w-full min-w-[120px] text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
+                    {item.out_of_stock && (
+                      <div className="flex items-center gap-1 mt-1 text-[10px] font-medium text-destructive">
+                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                        <span>Out of stock — not included in order</span>
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 px-2">
                     <div className="flex flex-wrap gap-1">
-                      <input value={item.color} onChange={(e) => updateItem(item.id, "color", e.target.value)} placeholder="Color" className="w-16 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30" />
-                      <input value={item.size} onChange={(e) => updateItem(item.id, "size", e.target.value)} placeholder="Size" className="w-20 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                      <input disabled={item.out_of_stock} value={item.color} onChange={(e) => updateItem(item.id, "color", e.target.value)} placeholder="Color" className="w-16 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
+                      <input disabled={item.out_of_stock} value={item.size} onChange={(e) => updateItem(item.id, "size", e.target.value)} placeholder="Size" className="w-20 text-[10px] px-1.5 py-0.5 rounded bg-muted border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
                     </div>
                   </td>
                   <td className="py-2 px-2">
-                    <input type="number" value={item.price} onChange={(e) => updateItem(item.id, "price", parseFloat(e.target.value) || 0)} className="w-16 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    <input type="number" disabled={item.out_of_stock} value={item.price} onChange={(e) => updateItem(item.id, "price", parseFloat(e.target.value) || 0)} className="w-16 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed" />
                   </td>
                   <td className="py-2 px-2">
-                    <span className={cn("text-xs", item.stock_level > 10 ? "text-sentiment-positive" : "text-sentiment-negative")}>
-                      {item.stock_level}
+                    <span className={cn("text-xs", item.out_of_stock ? "text-destructive font-medium" : item.stock_level > 10 ? "text-sentiment-positive" : "text-sentiment-negative")}>
+                      {item.out_of_stock ? "0" : item.stock_level}
                     </span>
                   </td>
                   <td className="py-2 px-2">
-                    <input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)} className="w-14 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
-                    {item.stock_insufficient && (
+                    {item.out_of_stock ? (
+                      <span className="text-xs text-muted-foreground italic">—</span>
+                    ) : (
+                      <input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)} className="w-14 text-xs px-2 py-1 rounded bg-secondary border-0 outline-none focus:ring-1 focus:ring-primary/30" />
+                    )}
+                    {item.stock_insufficient && !item.out_of_stock && (
                       <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600">
                         <AlertTriangle className="w-3 h-3 shrink-0" />
                         <span>Requested {item.requested_quantity}, only {item.stock_level} in stock</span>
