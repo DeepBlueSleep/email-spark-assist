@@ -314,7 +314,18 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           Escalate
         </button>
         <button
-          onClick={() => onStatusChange(email.id, "Rejected" as Status)}
+          onClick={async () => {
+            onStatusChange(email.id, "Escalated");
+            try {
+              await invokeFunction("api-emails", {
+                method: "PATCH",
+                body: { id: email.id, status: "Escalated" },
+              });
+              toast.success("Email rejected");
+            } catch {
+              toast.error("Failed to reject email");
+            }
+          }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-destructive/30 text-destructive bg-card hover:bg-destructive/10 transition-colors"
         >
           <Ban className="w-4 h-4" />
