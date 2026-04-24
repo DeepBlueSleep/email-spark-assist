@@ -26,6 +26,7 @@ const statusColorClass: Record<Status, string> = {
   Replied: "bg-status-replied/10 text-status-replied border-status-replied/20",
   Escalated: "bg-status-escalated/10 text-status-escalated border-status-escalated/20",
   "Awaiting Customer": "bg-status-awaiting/10 text-status-awaiting border-status-awaiting/20",
+  "Stock In Process": "bg-amber-500/10 text-amber-700 border-amber-500/30",
 };
 
 const intentColors: Record<Intent, string> = {

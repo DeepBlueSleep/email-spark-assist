@@ -18,6 +18,7 @@ const FALLBACK_STATUSES: StatusDef[] = [
   { id: "5", key: "replied", display_name: "Replied", description: null, sort_order: 5, is_active: true },
   { id: "6", key: "escalated", display_name: "Escalated", description: null, sort_order: 6, is_active: true },
   { id: "7", key: "awaiting_customer", display_name: "Awaiting Customer", description: null, sort_order: 7, is_active: true },
+  { id: "8", key: "stock_in_process", display_name: "Stock In Process", description: "Insufficient stock — pending admin restock review", sort_order: 8, is_active: true },
 ];
 
 export function useStatuses() {
