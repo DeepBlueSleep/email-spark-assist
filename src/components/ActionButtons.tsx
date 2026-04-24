@@ -108,53 +108,12 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   const requiresOverride = isCreditExceeded && !overrideAcknowledged;
 
   const handleApproveAndSend = async () => {
-    if (requiresOverride) return;
     setIsSending(true);
     try {
-      let resolvedCustomerId = email.customer_id || creditCheck?.customer_id || null;
-      let resolvedCustomerCode = email.customer?.code || null;
-
-      // If no customer mapped, create one now and charge the order against their fresh account
-      if (creditCheck?.status === "unknown") {
-        try {
-          const created = await invokeFunction("api-customers", {
-            method: "POST",
-            body: {
-              name: email.customer_name || "Unknown",
-              email: email.email,
-              credit_limit: 0,
-              credit_used: orderTotal,
-              credit_terms: "Net 30",
-              notes: `Auto-created from email approval on ${new Date().toISOString().slice(0, 10)}`,
-            },
-          });
-          resolvedCustomerId = created.customer?.id || null;
-          resolvedCustomerCode = created.customer?.code || null;
-          // Link the email to the new customer record
-          if (resolvedCustomerId) {
-            await invokeFunction("api-emails", {
-              method: "PATCH",
-              body: { id: email.id, customer_id: resolvedCustomerId },
-            }).catch(() => {});
-          }
-          toast.success(`New customer profile created for ${email.customer_name}`);
-        } catch (custErr) {
-          console.warn("Failed to auto-create customer:", custErr);
-          toast.error("Could not create customer profile — order will still send");
-        }
-      } else if (resolvedCustomerId && orderTotal > 0) {
-        // Existing customer: increment credit_used by the new order amount
-        const newUsed = (Number(creditCheck?.credit_used) || 0) + orderTotal;
-        await invokeFunction("api-customers", {
-          method: "PATCH",
-          body: { id: resolvedCustomerId, credit_used: newUsed },
-        }).catch((e) => console.warn("Failed to update credit_used:", e));
-      }
-
-      // Push approved order to Autocount (stub — endpoint not live yet)
-      await pushApprovedOrder({
+      // Stub: HTTP request to Autocount API (not wired to a real endpoint yet)
+      const autocountPayload = {
         email_id: email.id,
-        customer_code: resolvedCustomerCode,
+        customer_code: email.customer?.code || null,
         customer_name: email.customer_name,
         customer_email: email.email,
         subject: email.subject,
@@ -169,13 +128,18 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           Qty: item.quantity,
           UnitPrice: item.price,
         })),
-        credit_check: creditCheck ? {
-          status: creditCheck.status,
-          credit_limit: Number(creditCheck.credit_limit),
-          credit_used: Number(creditCheck.credit_used),
-          order_total: Number(creditCheck.order_total),
-        } : null,
-      });
+      };
+
+      try {
+        await fetch("https://api.autocount.example.com/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(autocountPayload),
+        });
+      } catch (httpErr) {
+        // Endpoint not live yet — log and continue
+        console.info("[Autocount stub] would POST:", autocountPayload, httpErr);
+      }
 
       // Update email status
       await invokeFunction("api-emails", {
@@ -183,10 +147,10 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         body: { id: email.id, status: "Replied", ai_reply_draft: replyDraft },
       });
       onStatusChange(email.id, "Replied");
-      toast.success(`Quotation sent to ${email.customer_name} (${selectedTone} tone)`);
+      toast.success(`Order sent to Autocount for ${email.customer_name}`);
       setShowConfirm(false);
     } catch (err) {
-      toast.error("Failed to send reply");
+      toast.error("Failed to send order");
     } finally {
       setIsSending(false);
     }
