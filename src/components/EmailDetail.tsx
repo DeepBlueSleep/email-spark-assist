@@ -134,8 +134,8 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
           )}
         </div>
 
-        {/* Credit Health — for credit-relevant intents */}
-        {isCreditRelevant && (
+        {/* Credit Health — for credit-relevant intents, or whenever the sender is unknown so they can be added */}
+        {(isCreditRelevant || !hasCustomer) && (
           hasCreditHistory ? (
             <div className={`rounded-xl border p-4 shadow-card ${overLimit ? "bg-destructive/5 border-destructive/30" : "bg-emerald-500/5 border-emerald-500/30"}`}>
               <div className="flex items-start justify-between gap-4">
