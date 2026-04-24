@@ -259,7 +259,42 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     }
   };
 
-  const actionedStatuses: Status[] = ["Replied", "Awaiting Customer", "Escalated"];
+  const handleStockInProcess = async () => {
+    setIsFilingStock(true);
+    try {
+      pushStockInProcess({
+        email_id: email.id,
+        customer_code: email.customer?.code || null,
+        customer_name: email.customer_name,
+        customer_email: email.email,
+        subject: email.subject,
+        intent: email.intent,
+        triggered_at: new Date().toISOString(),
+        order_total: orderTotal,
+        insufficient_items: insufficientStockItems.map((it) => ({
+          ItemCode: it.sku_code,
+          Description: it.name,
+          Requested: it.requested_quantity,
+          Available: it.stock_level,
+          Shortfall: Math.max(0, it.requested_quantity - it.stock_level),
+        })),
+      }).catch((e) => console.warn("autocount stock-in-process log failed:", e));
+
+      onStatusChange(email.id, "Stock In Process");
+      await invokeFunction("api-emails", {
+        method: "PATCH",
+        body: { id: email.id, status: "Stock In Process" },
+      });
+      toast.success(`Stock-in-process case opened for admin review (${insufficientStockItems.length} item${insufficientStockItems.length !== 1 ? "s" : ""})`);
+      setShowStockReview(false);
+    } catch (err) {
+      toast.error("Failed to file stock-in-process case");
+    } finally {
+      setIsFilingStock(false);
+    }
+  };
+
+  const actionedStatuses: Status[] = ["Replied", "Awaiting Customer", "Escalated", "Stock In Process"];
   const isActioned = actionedStatuses.includes(email.status);
 
   if (isActioned) {
@@ -268,6 +303,8 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         ? "Reply sent — no further action needed"
         : email.status === "Awaiting Customer"
         ? "Information requested — awaiting customer response"
+        : email.status === "Stock In Process"
+        ? "Stock-in-process case opened — awaiting admin restock review"
         : "Escalated — handled outside this workflow";
     const Icon =
       email.status === "Replied" ? Check : email.status === "Awaiting Customer" ? HelpCircle : XCircle;
