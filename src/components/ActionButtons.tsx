@@ -29,14 +29,22 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
   const [showConfirm, setShowConfirm] = useState(false);
   const [showEscalate, setShowEscalate] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
+  const [showStockReview, setShowStockReview] = useState(false);
   const [escalateReason, setEscalateReason] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isFilingStock, setIsFilingStock] = useState(false);
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
   const [checkingCredit, setCheckingCredit] = useState(false);
   const [overrideAcknowledged, setOverrideAcknowledged] = useState(false);
   const [clarificationMsg, setClarificationMsg] = useState(
     `Dear ${email.customer_name},\n\nThank you for your email. We need some additional information to process your request:\n\n- [Please specify details]\n\nCould you please provide these details at your earliest convenience?\n\nBest regards,\nOrder Processing Team`
   );
+
+  // Stock availability check — any draft item where requested qty exceeds stock_level (or stock is 0)
+  const insufficientStockItems = draftOrderItems.filter(
+    (it) => it.stock_level <= 0 || it.quantity > it.stock_level || it.requested_quantity > it.stock_level
+  );
+  const hasStockIssue = insufficientStockItems.length > 0;
 
   const creditRelevantIntents = ["Order Creation", "Order Change", "Credit Enquiry"];
   const isCreditRelevant = creditRelevantIntents.includes(email.intent);
