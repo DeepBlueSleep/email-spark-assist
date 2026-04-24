@@ -156,7 +156,7 @@ export function EmailBody({ body }: EmailBodyProps) {
       <iframe
         ref={ref}
         title="Email body"
-        sandbox="allow-popups allow-popups-to-escape-sandbox"
+        sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
         srcDoc={doc}
         style={{ width: "100%", height, border: 0, display: "block", background: "transparent" }}
       />
