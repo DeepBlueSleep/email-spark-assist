@@ -30,6 +30,7 @@ export interface DraftOrderItem {
   quantity: number;
   requested_quantity: number;
   stock_insufficient: boolean;
+  out_of_stock: boolean;
 }
 
 interface DraftOrderProps {
