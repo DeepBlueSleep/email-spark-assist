@@ -151,6 +151,7 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
       quantity: 1,
       requested_quantity: 1,
       stock_insufficient: false,
+      out_of_stock: (product.stock_level ?? 0) <= 0,
     };
     setItems((prev) => [...prev, newItem]);
     setShowSearch(false);
