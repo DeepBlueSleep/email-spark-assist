@@ -73,11 +73,12 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
     buildDraftItems(recommendedSkus, extractedOrderItems)
   );
 
-  // Report total and items to parent whenever items change
+  // Report total and items to parent — exclude out-of-stock items (visual only).
   useEffect(() => {
-    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const orderable = items.filter((i) => !i.out_of_stock);
+    const total = orderable.reduce((sum, item) => sum + item.price * item.quantity, 0);
     onTotalChange?.(total);
-    onItemsChange?.(items);
+    onItemsChange?.(orderable);
   }, [items, onTotalChange, onItemsChange]);
   const [removed, setRemoved] = useState<DraftOrderItem[]>([]);
   const [showSearch, setShowSearch] = useState(false);
