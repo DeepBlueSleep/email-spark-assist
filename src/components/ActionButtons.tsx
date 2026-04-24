@@ -386,93 +386,25 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
       {showConfirm && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowConfirm(false)}>
           <div className="bg-card rounded-xl shadow-elevated p-6 max-w-lg w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <h4 className="text-lg font-semibold mb-2">Confirm & Send Reply</h4>
+            <h4 className="text-lg font-semibold mb-2">Send Order to Autocount</h4>
             <p className="text-sm text-muted-foreground mb-3">
-              Send this <span className="font-medium text-foreground">{selectedTone}</span> reply to <span className="font-medium text-foreground">{email.customer_name}</span>?
+              This will submit the approved order for <span className="font-medium text-foreground">{email.customer_name}</span> to the Autocount API and send the <span className="font-medium text-foreground">{selectedTone}</span> reply.
             </p>
-
-            {/* Credit Check Result */}
-            {orderTotal > 0 && (
-              <div className="mb-4">
-                {checkingCredit ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg p-3">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Checking credit terms…
-                  </div>
-                ) : creditCheck && (
-                  <div className={`rounded-lg p-3 text-xs space-y-1.5 ${
-                    creditCheck.status === "exceeded"
-                      ? "bg-destructive/10 border border-destructive/20"
-                      : creditCheck.status === "warning"
-                      ? "bg-amber-500/10 border border-amber-500/20"
-                      : creditCheck.status === "unknown"
-                      ? "bg-primary/10 border border-primary/20"
-                      : "bg-sentiment-positive/10 border border-sentiment-positive/20"
-                  }`}>
-                    <div className="flex items-center gap-2 font-semibold">
-                      {creditCheck.status === "exceeded" ? (
-                        <><AlertTriangle className="w-4 h-4 text-destructive" /><span className="text-destructive">Credit Limit Exceeded</span></>
-                      ) : creditCheck.status === "warning" ? (
-                        <><AlertTriangle className="w-4 h-4 text-amber-600" /><span className="text-amber-600">Credit Warning</span></>
-                      ) : creditCheck.status === "unknown" ? (
-                        <><UserPlus className="w-4 h-4 text-primary" /><span className="text-primary">New Customer — Will Be Created</span></>
-                      ) : (
-                        <><ShieldCheck className="w-4 h-4 text-sentiment-positive" /><span className="text-sentiment-positive">Credit Check Passed</span></>
-                      )}
-                    </div>
-                    <p className="text-muted-foreground">{creditCheck.message}</p>
-                    {creditCheck.credit_limit > 0 && (
-                      <div className="flex gap-4 pt-1 text-muted-foreground">
-                        <span>Limit: <span className="font-medium text-foreground">${Number(creditCheck.credit_limit).toFixed(2)}</span></span>
-                        <span>Used: <span className="font-medium text-foreground">${Number(creditCheck.credit_used).toFixed(2)}</span></span>
-                        <span>Order: <span className="font-medium text-foreground">${Number(creditCheck.order_total).toFixed(2)}</span></span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="bg-secondary/50 rounded-lg p-4 max-h-48 overflow-y-auto mb-4">
               <pre className="text-xs whitespace-pre-wrap font-sans text-foreground/80">{replyDraft}</pre>
             </div>
-            {isCreditExceeded && (
-              <div className="mb-4 rounded-lg border-2 border-destructive bg-destructive/10 p-3">
-                <div className="flex items-start gap-2">
-                  <input
-                    id="credit-override"
-                    type="checkbox"
-                    checked={overrideAcknowledged}
-                    onChange={(e) => setOverrideAcknowledged(e.target.checked)}
-                    className="mt-0.5 accent-destructive"
-                  />
-                  <label htmlFor="credit-override" className="text-xs text-destructive font-medium leading-snug cursor-pointer">
-                    I acknowledge this order <span className="underline">exceeds the customer's credit limit</span> and accept responsibility for approving it. The overage will be charged against their account.
-                  </label>
-                </div>
-              </div>
-            )}
+
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
-              {isCreditExceeded ? (
-                <button
-                  onClick={handleApproveAndSend}
-                  disabled={isSending || checkingCredit || requiresOverride}
-                  className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground font-semibold hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md ring-2 ring-destructive/30"
-                >
-                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
-                  Override & Send Anyway
-                </button>
-              ) : (
-                <button
-                  onClick={handleApproveAndSend}
-                  disabled={isSending || checkingCredit}
-                  className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-sentiment-positive text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                >
-                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  Confirm & Send
-                </button>
-              )}
+              <button
+                onClick={handleApproveAndSend}
+                disabled={isSending}
+                className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-sentiment-positive text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Approve and Send to Autocount
+              </button>
             </div>
           </div>
         </div>
