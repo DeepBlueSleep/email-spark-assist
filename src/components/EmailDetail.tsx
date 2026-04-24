@@ -7,6 +7,7 @@ import type { DraftOrderItem } from "./DraftOrder";
 import { AIReplyEditor } from "./AIReplyEditor";
 import { ActionButtons } from "./ActionButtons";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { CreateCustomerDialog } from "./CreateCustomerDialog";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { User, Clock, Paperclip, ShieldCheck, ShieldAlert, ShieldQuestion, UserPlus, Loader2 } from "lucide-react";
@@ -60,30 +61,16 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
   const utilization = creditLimit > 0 ? Math.min(100, Math.round((projected / creditLimit) * 100)) : 0;
   const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
-  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [initializingCredit, setInitializingCredit] = useState(false);
 
-  const handleCreateCustomer = async () => {
-    setCreatingCustomer(true);
-    try {
-      await invokeFunction("api-customers", {
-        method: "POST",
-        body: {
-          name: email.customer_name || "Unknown",
-          email: email.email,
-          credit_limit: 0,
-          credit_used: 0,
-          credit_terms: "Net 30",
-          notes: "Auto-created from email — no credit history yet.",
-        },
-      });
-      toast.success("Customer record created with empty credit history.");
-      setTimeout(() => window.location.reload(), 600);
-    } catch (e: any) {
-      toast.error(`Failed to create customer: ${e.message || e}`);
-    } finally {
-      setCreatingCustomer(false);
-    }
+  const handleCreateCustomer = () => {
+    setShowCreateCustomer(true);
+  };
+
+  const handleCustomerCreated = () => {
+    // Reload to refresh the linked customer record on this email
+    setTimeout(() => window.location.reload(), 400);
   };
 
   const handleInitializeCredit = async () => {
@@ -232,14 +219,9 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
                       size="sm"
                       variant="outline"
                       onClick={handleCreateCustomer}
-                      disabled={creatingCustomer}
                       className="border-amber-500/40 hover:bg-amber-500/10"
                     >
-                      {creatingCustomer ? (
-                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                      ) : (
-                        <UserPlus className="w-3.5 h-3.5 mr-1.5" />
-                      )}
+                      <UserPlus className="w-3.5 h-3.5 mr-1.5" />
                       Create Customer Record
                     </Button>
                   )}
@@ -281,6 +263,15 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
           onClose={() => setShowAttachments(false)}
         />
       )}
+
+      {/* Create Customer dialog */}
+      <CreateCustomerDialog
+        open={showCreateCustomer}
+        onOpenChange={setShowCreateCustomer}
+        defaultName={email.customer_name || ""}
+        defaultEmail={email.email}
+        onCreated={handleCustomerCreated}
+      />
     </div>
   );
 }
