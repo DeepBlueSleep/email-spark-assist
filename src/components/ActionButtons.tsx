@@ -307,12 +307,17 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         ? "Stock-in-process case opened — awaiting admin restock review"
         : "Escalated — handled outside this workflow";
     const Icon =
-      email.status === "Replied" ? Check : email.status === "Awaiting Customer" ? HelpCircle : XCircle;
+      email.status === "Replied" ? Check
+        : email.status === "Awaiting Customer" ? HelpCircle
+        : email.status === "Stock In Process" ? AlertTriangle
+        : XCircle;
     const tone =
       email.status === "Replied"
         ? "text-sentiment-positive bg-sentiment-positive/10 border-sentiment-positive/20"
         : email.status === "Awaiting Customer"
         ? "text-status-awaiting bg-status-awaiting/10 border-status-awaiting/30"
+        : email.status === "Stock In Process"
+        ? "text-amber-700 bg-amber-500/10 border-amber-500/30"
         : "text-destructive bg-destructive/10 border-destructive/20";
     return (
       <div className="bg-card rounded-xl shadow-card p-6">
@@ -339,10 +344,16 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           </div>
         ) : (
           <button
-            onClick={() => setShowConfirm(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-sentiment-positive text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+            onClick={() => hasStockIssue ? setShowStockReview(true) : setShowConfirm(true)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity ${
+              hasStockIssue
+                ? "bg-amber-500 text-white"
+                : "bg-sentiment-positive text-primary-foreground"
+            }`}
+            title={hasStockIssue ? "Stock unavailable — review and open a stock-in-process case" : undefined}
           >
-            <Send className="w-4 h-4" /> Approve & Send
+            {hasStockIssue ? <AlertTriangle className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+            {hasStockIssue ? "Approve & Send — Stock Review Required" : "Approve & Send"}
           </button>
         )}
         <button
