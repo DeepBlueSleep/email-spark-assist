@@ -97,7 +97,7 @@ function buildIframeDoc(rawBody: string): string {
         FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "input"],
         FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
       })
-    : `<pre style="white-space:pre-wrap;font-family:inherit;margin:0">${plainTextToHtml(decoded)}</pre>`;
+    : `<div class="plain">${plainTextToHtml(decoded)}</div>`;
 
   return `<!doctype html><html><head><meta charset="utf-8"><base target="_blank">
 <style>
@@ -108,6 +108,11 @@ function buildIframeDoc(rawBody: string): string {
   table{max-width:100%; border-collapse:collapse;}
   blockquote{border-left:3px solid #d1d5db; margin:0 0 0 .25rem; padding:.25rem 0 .25rem .75rem; color:#4b5563;}
   pre{white-space:pre-wrap; word-wrap:break-word;}
+  ul,ol{margin:.4rem 0 .4rem 1.25rem; padding:0;}
+  li{margin:.15rem 0;}
+  strong{font-weight:600;}
+  em{font-style:italic;}
+  .plain{white-space:normal;}
 </style></head><body>${inner}</body></html>`;
 }
 
