@@ -345,8 +345,21 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
                 body: { id: email.id, status: "Escalated" },
               });
               toast.success("Email rejected");
+              logClientAudit({
+                action: "reject_email",
+                target_type: "email",
+                target_id: email.id,
+                status: "success",
+                metadata: { customer_email: email.email },
+              });
             } catch {
               toast.error("Failed to reject email");
+              logClientAudit({
+                action: "reject_email",
+                target_type: "email",
+                target_id: email.id,
+                status: "error",
+              });
             }
           }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-destructive/30 text-destructive bg-card hover:bg-destructive/10 transition-colors"
