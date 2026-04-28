@@ -154,6 +154,9 @@ const Dashboard = () => {
           <Link to="/inbox" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
             Inbox
           </Link>
+          <Link to="/audit-logs" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            Audit Logs
+          </Link>
         </nav>
         <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
           {usingLiveData ? <Wifi className="w-3.5 h-3.5 text-green-600" /> : <WifiOff className="w-3.5 h-3.5" />}
