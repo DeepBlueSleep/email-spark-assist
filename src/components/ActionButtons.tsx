@@ -149,9 +149,24 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
       });
       onStatusChange(email.id, "Replied");
       toast.success(`Order sent to Autocount for ${email.customer_name}`);
+      logClientAudit({
+        action: "approve_and_send_to_autocount",
+        target_type: "email",
+        target_id: email.id,
+        status: "success",
+        request: autocountPayload,
+        metadata: { customer_email: email.email, order_total: orderTotal },
+      });
       setShowConfirm(false);
     } catch (err) {
       toast.error("Failed to send order");
+      logClientAudit({
+        action: "approve_and_send_to_autocount",
+        target_type: "email",
+        target_id: email.id,
+        status: "error",
+        error: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       setIsSending(false);
     }
