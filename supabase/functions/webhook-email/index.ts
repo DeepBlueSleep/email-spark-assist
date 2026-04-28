@@ -277,23 +277,36 @@ Deno.serve(withAudit("webhook-email", async (req) => {
           updated_at = now()
       `;
 
-      // Upsert email (linked to customer via email address, not customer_id)
+      // Upsert email (linked to customer via email address, not customer_id).
+      // IMPORTANT: AI fields (sentiment/intent/confidences/ai_reply_draft) must NOT
+      // be overwritten on conflict unless the inbound payload explicitly carries them.
+      // Gmail re-pushes the same external_id frequently and would otherwise wipe
+      // any AI enrichment that arrived between ingestions.
+      const sentimentVal = raw.sentiment ?? null;
+      const sentimentConfVal = raw.sentiment_confidence ?? null;
+      const intentVal = raw.intent ?? null;
+      const intentConfVal = raw.intent_confidence ?? null;
+      const aiDraftVal = raw.ai_reply_draft ?? null;
+
       const rows = await sql`
         INSERT INTO emails (external_id, customer_name, email, subject, body, timestamp, sentiment, sentiment_confidence, intent, intent_confidence, ai_reply_draft, status, attachments)
         VALUES (
           ${parsed.external_id}, ${parsed.customer_name}, ${parsed.customer_email},
           ${parsed.subject}, ${parsed.body}, ${parsed.timestamp},
-          ${raw.sentiment || "Neutral"}, ${raw.sentiment_confidence || 0},
-          ${raw.intent || "General Question"}, ${raw.intent_confidence || 0},
-          ${raw.ai_reply_draft || ""}, ${raw.status || "New"}, ${parsed.attachments}
+          ${sentimentVal ?? "Neutral"}, ${sentimentConfVal ?? 0},
+          ${intentVal ?? "General Question"}, ${intentConfVal ?? 0},
+          ${aiDraftVal ?? ""}, ${raw.status || "New"}, ${parsed.attachments}
         )
         ON CONFLICT (external_id) DO UPDATE SET
           customer_name = EXCLUDED.customer_name, email = EXCLUDED.email,
           subject = EXCLUDED.subject, body = EXCLUDED.body, timestamp = EXCLUDED.timestamp,
-          sentiment = EXCLUDED.sentiment, sentiment_confidence = EXCLUDED.sentiment_confidence,
-          intent = EXCLUDED.intent, intent_confidence = EXCLUDED.intent_confidence,
+          sentiment = COALESCE(${sentimentVal}, emails.sentiment),
+          sentiment_confidence = COALESCE(${sentimentConfVal}, emails.sentiment_confidence),
+          intent = COALESCE(${intentVal}, emails.intent),
+          intent_confidence = COALESCE(${intentConfVal}, emails.intent_confidence),
+          ai_reply_draft = COALESCE(NULLIF(${aiDraftVal}, ''), emails.ai_reply_draft),
           attachments = EXCLUDED.attachments, updated_at = now()
-          -- NOTE: Do NOT overwrite status, ai_reply_draft, is_read, or is_archived on conflict.
+          -- NOTE: Do NOT overwrite status, is_read, or is_archived on conflict.
           -- These reflect user actions in the dashboard and must persist across re-ingestions.
         RETURNING id, external_id
       `;
