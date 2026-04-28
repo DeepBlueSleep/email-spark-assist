@@ -1,4 +1,4 @@
-import { withAudit } from "../_shared/audit.ts";
+import { withAudit, logAudit } from "../_shared/audit.ts";
 import { corsHeaders } from "../_shared/db.ts";
 
 Deno.serve(withAudit("api-webhook-proxy", async (req) => {
