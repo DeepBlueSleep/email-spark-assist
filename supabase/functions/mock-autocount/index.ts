@@ -412,11 +412,11 @@ Deno.serve(withAudit("mock-autocount", async (req) => {
     console.error("Mock Autocount error:", err);
     return json({ error: err.message || "Internal server error" }, 500);
   }
-});
+}));
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
-  }));
+  });
 }
