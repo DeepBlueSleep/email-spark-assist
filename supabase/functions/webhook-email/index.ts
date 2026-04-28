@@ -1,3 +1,4 @@
+import { withAudit } from "../_shared/audit.ts";
 import { getDb, corsHeaders } from "../_shared/db.ts";
 
 interface AttachmentData {
@@ -145,7 +146,7 @@ function parseEmail(raw: any): { parsed: ParsedEmail; raw: any } {
   return { parsed, raw };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withAudit("webhook-email", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -343,4 +344,4 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

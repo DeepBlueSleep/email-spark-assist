@@ -1,6 +1,7 @@
+import { withAudit } from "../_shared/audit.ts";
 import { getDb, corsHeaders } from "../_shared/db.ts";
 
-Deno.serve(async (req) => {
+Deno.serve(withAudit("api-customers", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -145,4 +146,4 @@ Deno.serve(async (req) => {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

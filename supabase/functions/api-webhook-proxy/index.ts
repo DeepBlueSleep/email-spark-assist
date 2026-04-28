@@ -1,6 +1,7 @@
+import { withAudit } from "../_shared/audit.ts";
 import { corsHeaders } from "../_shared/db.ts";
 
-Deno.serve(async (req) => {
+Deno.serve(withAudit("api-webhook-proxy", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -46,4 +47,4 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));
