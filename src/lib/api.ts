@@ -34,8 +34,8 @@ export async function invokeFunction(functionName: string, options: InvokeOption
     fetchOptions.body = JSON.stringify(body);
   }
 
-  // Retry transient errors (503 cold starts, network blips) with backoff
-  const maxAttempts = 3;
+  // Retry transient errors (503 cold starts, network blips) with exponential backoff + jitter
+  const maxAttempts = 5;
   let lastErr: any;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -43,9 +43,16 @@ export async function invokeFunction(functionName: string, options: InvokeOption
       if (response.ok) return response.json();
 
       const errBody = await response.text();
-      // Retry only on transient server errors
-      if ((response.status === 503 || response.status === 502 || response.status === 504) && attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 400 * attempt));
+      // Retry on transient server errors and edge runtime degradation
+      const isTransient =
+        response.status === 503 ||
+        response.status === 502 ||
+        response.status === 504 ||
+        response.status === 429 ||
+        /SUPABASE_EDGE_RUNTIME_SERVICE_DEGRADED|temporarily unavailable/i.test(errBody);
+      if (isTransient && attempt < maxAttempts) {
+        const delay = Math.min(2000, 300 * 2 ** (attempt - 1)) + Math.random() * 200;
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
       throw new Error(`API error ${response.status}: ${errBody}`);
@@ -53,7 +60,8 @@ export async function invokeFunction(functionName: string, options: InvokeOption
       lastErr = err;
       // Network errors — retry
       if (attempt < maxAttempts && (err?.name === "TypeError" || /NetworkError|Failed to fetch/i.test(err?.message ?? ""))) {
-        await new Promise((r) => setTimeout(r, 400 * attempt));
+        const delay = Math.min(2000, 300 * 2 ** (attempt - 1)) + Math.random() * 200;
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
       throw err;
