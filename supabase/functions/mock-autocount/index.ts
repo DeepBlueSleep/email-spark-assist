@@ -1,3 +1,4 @@
+import { withAudit } from "../_shared/audit.ts";
 import { corsHeaders } from "../_shared/db.ts";
 
 /**
@@ -152,7 +153,7 @@ let paymentCounter = 2;
 
 // ─── Route handler ──────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
+Deno.serve(withAudit("mock-autocount", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -417,5 +418,5 @@ function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  }));
 }

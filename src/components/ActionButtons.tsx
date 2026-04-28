@@ -3,6 +3,7 @@ import { Email, Status } from "@/data/mockData";
 import type { DraftOrderItem } from "./DraftOrder";
 import { Check, HelpCircle, XCircle, Send, Loader2, AlertTriangle, ShieldCheck, Ban, UserPlus } from "lucide-react";
 import { invokeFunction } from "@/lib/api";
+import { logClientAudit } from "@/lib/audit";
 import { pushApprovedOrder, pushRequestInfo, pushEscalation, pushStockInProcess } from "@/lib/autocount";
 import { toast } from "sonner";
 
@@ -148,9 +149,24 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
       });
       onStatusChange(email.id, "Replied");
       toast.success(`Order sent to Autocount for ${email.customer_name}`);
+      logClientAudit({
+        action: "approve_and_send_to_autocount",
+        target_type: "email",
+        target_id: email.id,
+        status: "success",
+        request: autocountPayload,
+        metadata: { customer_email: email.email, order_total: orderTotal },
+      });
       setShowConfirm(false);
     } catch (err) {
       toast.error("Failed to send order");
+      logClientAudit({
+        action: "approve_and_send_to_autocount",
+        target_type: "email",
+        target_id: email.id,
+        status: "error",
+        error: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       setIsSending(false);
     }
@@ -200,6 +216,13 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     // Optimistic UI update — user sees the change immediately
     try { onStatusChange(email.id, "Escalated"); } catch (e) { console.warn("onStatusChange threw:", e); }
     toast.success("Email escalated");
+    logClientAudit({
+      action: "escalate_email",
+      target_type: "email",
+      target_id: email.id,
+      status: "success",
+      metadata: { reason: escalateReason, customer_email: email.email },
+    });
     setShowEscalate(false);
 
     // Persist status — retry once on transient network error
@@ -322,8 +345,21 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
                 body: { id: email.id, status: "Escalated" },
               });
               toast.success("Email rejected");
+              logClientAudit({
+                action: "reject_email",
+                target_type: "email",
+                target_id: email.id,
+                status: "success",
+                metadata: { customer_email: email.email },
+              });
             } catch {
               toast.error("Failed to reject email");
+              logClientAudit({
+                action: "reject_email",
+                target_type: "email",
+                target_id: email.id,
+                status: "error",
+              });
             }
           }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-destructive/30 text-destructive bg-card hover:bg-destructive/10 transition-colors"

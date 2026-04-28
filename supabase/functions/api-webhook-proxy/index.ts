@@ -1,6 +1,7 @@
+import { withAudit, logAudit } from "../_shared/audit.ts";
 import { corsHeaders } from "../_shared/db.ts";
 
-Deno.serve(async (req) => {
+Deno.serve(withAudit("api-webhook-proxy", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -23,13 +24,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    const response = await fetch(webhook_url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const responseText = await response.text();
+    const outStart = Date.now();
+    let response: Response;
+    let responseText = "";
+    let outError: string | null = null;
+    try {
+      response = await fetch(webhook_url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      responseText = await response.text();
+    } catch (e: any) {
+      outError = e?.message || String(e);
+      throw e;
+    } finally {
+      logAudit({
+        category: "http_out",
+        action: `proxy.POST ${webhook_url}`,
+        source: "api-webhook-proxy",
+        status: outError ? "error" : String(response!?.status ?? ""),
+        request: { url: webhook_url, body: payload },
+        response: { body: responseText },
+        error: outError,
+        duration_ms: Date.now() - outStart,
+      });
+    }
 
     return new Response(JSON.stringify({ 
       success: response.ok, 
@@ -46,4 +66,4 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

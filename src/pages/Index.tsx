@@ -102,6 +102,9 @@ const Index = () => {
           <Link to="/inbox" className="px-3 py-1.5 rounded-md text-sm font-medium bg-muted text-foreground">
             Inbox
           </Link>
+          <Link to="/audit-logs" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            Audit Logs
+          </Link>
         </nav>
         <span className="ml-4 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">MVP</span>
         <div className="ml-auto flex items-center gap-4">

@@ -1,3 +1,4 @@
+import { withAudit } from "../_shared/audit.ts";
 import { getDb, corsHeaders } from "../_shared/db.ts";
 
 const DEFAULT_STATUSES = [
@@ -38,7 +39,7 @@ async function ensureTable(sql: any) {
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withAudit("api-statuses", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -64,4 +65,4 @@ Deno.serve(async (req) => {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

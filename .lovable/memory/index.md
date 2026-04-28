@@ -33,3 +33,4 @@ Human-in-the-loop dashboard for processing customer emails through AI.
 - [Product Vector Sync](mem://tech/product-vector-sync) — OpenAI embeddings sync to Supabase vector store
 - [External API Security](mem://tech/external-api-access-security) — Auth bypass and WEBHOOK_SECRET
 - [Autocount Integration](mem://features/autocount-integration-mock) — Mock ERP simulator for stock/credit
+- [Audit Logging](mem://features/audit-logging) — withAudit wrapper, /audit-logs page, http in/out + user actions
