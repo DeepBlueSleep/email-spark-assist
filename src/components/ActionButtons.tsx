@@ -216,6 +216,13 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     // Optimistic UI update — user sees the change immediately
     try { onStatusChange(email.id, "Escalated"); } catch (e) { console.warn("onStatusChange threw:", e); }
     toast.success("Email escalated");
+    logClientAudit({
+      action: "escalate_email",
+      target_type: "email",
+      target_id: email.id,
+      status: "success",
+      metadata: { reason: escalateReason, customer_email: email.email },
+    });
     setShowEscalate(false);
 
     // Persist status — retry once on transient network error
