@@ -1,6 +1,7 @@
 import { getDb, corsHeaders } from "../_shared/db.ts";
+import { withAudit } from "../_shared/audit.ts";
 
-Deno.serve(async (req) => {
+Deno.serve(withAudit("api-emails", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
