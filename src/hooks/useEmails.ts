@@ -204,11 +204,12 @@ export function useEmails() {
       const set = new Set(ids);
       setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_archived } : e)));
       if (usingLiveData) {
-        await Promise.all(
-          ids.map((id) =>
-            invokeFunction("api-emails", { method: "PATCH", body: { id, is_archived } }).catch(console.error)
-          )
-        );
+        try {
+          await invokeFunction("api-emails", { method: "PATCH", body: { ids, is_archived } });
+        } catch (err) {
+          console.error("Failed to bulk archive:", err);
+          setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_archived: !is_archived } : e)));
+        }
       }
     },
     [usingLiveData]
@@ -220,11 +221,12 @@ export function useEmails() {
       const set = new Set(ids);
       setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read } : e)));
       if (usingLiveData) {
-        await Promise.all(
-          ids.map((id) =>
-            invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } }).catch(console.error)
-          )
-        );
+        try {
+          await invokeFunction("api-emails", { method: "PATCH", body: { ids, is_read } });
+        } catch (err) {
+          console.error("Failed to bulk mark read:", err);
+          setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read: !is_read } : e)));
+        }
       }
     },
     [usingLiveData]
@@ -236,11 +238,11 @@ export function useEmails() {
       const set = new Set(ids);
       setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, status } : e)));
       if (usingLiveData) {
-        await Promise.all(
-          ids.map((id) =>
-            invokeFunction("api-emails", { method: "PATCH", body: { id, status } }).catch(console.error)
-          )
-        );
+        try {
+          await invokeFunction("api-emails", { method: "PATCH", body: { ids, status } });
+        } catch (err) {
+          console.error("Failed to bulk update status:", err);
+        }
       }
     },
     [usingLiveData]
