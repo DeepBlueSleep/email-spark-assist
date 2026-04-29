@@ -239,50 +239,59 @@ export function useEmails() {
     async (ids: string[], is_archived: boolean) => {
       if (ids.length === 0) return;
       const set = new Set(ids);
+      ids.forEach((id) => addPendingPatch(id, { is_archived }));
       setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_archived } : e)));
       if (usingLiveData) {
         try {
           await invokeFunction("api-emails", { method: "PATCH", body: { ids, is_archived } });
+          ids.forEach((id) => clearPendingPatch(id, ["is_archived"]));
         } catch (err) {
           console.error("Failed to bulk archive:", err);
+          ids.forEach((id) => clearPendingPatch(id, ["is_archived"]));
           setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_archived: !is_archived } : e)));
         }
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const bulkMarkRead = useCallback(
     async (ids: string[], is_read: boolean) => {
       if (ids.length === 0) return;
       const set = new Set(ids);
+      ids.forEach((id) => addPendingPatch(id, { is_read }));
       setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read } : e)));
       if (usingLiveData) {
         try {
           await invokeFunction("api-emails", { method: "PATCH", body: { ids, is_read } });
+          ids.forEach((id) => clearPendingPatch(id, ["is_read"]));
         } catch (err) {
           console.error("Failed to bulk mark read:", err);
+          ids.forEach((id) => clearPendingPatch(id, ["is_read"]));
           setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read: !is_read } : e)));
         }
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const bulkSetStatus = useCallback(
     async (ids: string[], status: Status) => {
       if (ids.length === 0) return;
       const set = new Set(ids);
+      ids.forEach((id) => addPendingPatch(id, { status }));
       setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, status } : e)));
       if (usingLiveData) {
         try {
           await invokeFunction("api-emails", { method: "PATCH", body: { ids, status } });
+          ids.forEach((id) => clearPendingPatch(id, ["status"]));
         } catch (err) {
           console.error("Failed to bulk update status:", err);
+          ids.forEach((id) => clearPendingPatch(id, ["status"]));
         }
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   return { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail, bulkDelete, bulkSetArchived, bulkMarkRead, bulkSetStatus };
