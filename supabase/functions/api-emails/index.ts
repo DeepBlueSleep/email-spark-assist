@@ -72,6 +72,16 @@ Deno.serve(withAudit("api-emails", async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // Tombstone external_ids so re-ingested Gmail pushes don't resurrect deletions.
+      await sql`CREATE TABLE IF NOT EXISTS deleted_emails (
+        external_id text PRIMARY KEY,
+        deleted_at timestamptz NOT NULL DEFAULT now()
+      )`;
+      const toTomb = await sql`SELECT external_id FROM emails WHERE id = ANY(${ids}::uuid[]) AND external_id IS NOT NULL`;
+      if (toTomb.length > 0) {
+        const extIds = toTomb.map((r: any) => r.external_id);
+        await sql`INSERT INTO deleted_emails (external_id) SELECT unnest(${extIds}::text[]) ON CONFLICT (external_id) DO NOTHING`;
+      }
       // Delete order_items first, then emails
       await sql`DELETE FROM order_items WHERE email_id = ANY(${ids})`;
       await sql`DELETE FROM emails WHERE id = ANY(${ids}::uuid[])`;
