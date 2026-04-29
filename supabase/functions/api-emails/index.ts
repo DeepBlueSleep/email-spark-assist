@@ -129,7 +129,7 @@ Deno.serve(withAudit("api-emails", async (req) => {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("API emails error:", error);
     return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
