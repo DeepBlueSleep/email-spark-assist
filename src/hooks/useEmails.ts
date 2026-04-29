@@ -19,8 +19,15 @@ export function useEmails() {
     pendingPatchesRef.current[id] = { ...(pendingPatchesRef.current[id] || {}), ...patch };
   }, []);
 
-  const clearPendingPatch = useCallback((id: string) => {
-    delete pendingPatchesRef.current[id];
+  const clearPendingPatch = useCallback((id: string, keys?: (keyof Email)[]) => {
+    if (!keys) {
+      delete pendingPatchesRef.current[id];
+      return;
+    }
+    const current = pendingPatchesRef.current[id];
+    if (!current) return;
+    keys.forEach((key) => delete current[key]);
+    if (Object.keys(current).length === 0) delete pendingPatchesRef.current[id];
   }, []);
 
   const fetchEmails = useCallback(async () => {
@@ -159,8 +166,8 @@ export function useEmails() {
 
       if (usingLiveData) {
         invokeFunction("api-emails", { method: "PATCH", body: { id, status } })
-          .then(() => clearPendingPatch(id))
-          .catch(console.error);
+          .then(() => clearPendingPatch(id, ["status"]))
+          .catch((err) => { clearPendingPatch(id, ["status"]); console.error(err); });
       }
     },
     [addPendingPatch, clearPendingPatch, usingLiveData]
@@ -172,8 +179,8 @@ export function useEmails() {
       setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_read } : e)));
       if (usingLiveData) {
         invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } })
-          .then(() => clearPendingPatch(id))
-          .catch(console.error);
+          .then(() => clearPendingPatch(id, ["is_read"]))
+          .catch((err) => { clearPendingPatch(id, ["is_read"]); console.error(err); });
       }
     },
     [addPendingPatch, clearPendingPatch, usingLiveData]
@@ -185,8 +192,8 @@ export function useEmails() {
       setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_archived } : e)));
       if (usingLiveData) {
         invokeFunction("api-emails", { method: "PATCH", body: { id, is_archived } })
-          .then(() => clearPendingPatch(id))
-          .catch(console.error);
+          .then(() => clearPendingPatch(id, ["is_archived"]))
+          .catch((err) => { clearPendingPatch(id, ["is_archived"]); console.error(err); });
       }
     },
     [addPendingPatch, clearPendingPatch, usingLiveData]
