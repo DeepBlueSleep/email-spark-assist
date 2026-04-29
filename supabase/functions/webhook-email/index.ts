@@ -326,9 +326,15 @@ Deno.serve(withAudit("webhook-email", async (req) => {
         SELECT 1 FROM deleted_emails
         WHERE external_id = ANY(${externalIdCandidates}::text[])
            OR (
-             email = ${parsed.customer_email}
-             AND subject = ${parsed.subject}
-             AND body_hash = md5(${parsed.body})
+             lower(COALESCE(email, '')) = lower(${parsed.customer_email})
+             AND lower(trim(COALESCE(subject, ''))) = lower(trim(${parsed.subject}))
+             AND (
+               body_hash = md5(${parsed.body})
+               OR (
+                 message_timestamp IS NOT NULL
+                 AND ABS(EXTRACT(EPOCH FROM (message_timestamp - ${parsed.timestamp}::timestamptz))) <= 300
+               )
+             )
            )
         LIMIT 1
       `;
