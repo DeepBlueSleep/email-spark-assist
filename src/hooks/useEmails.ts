@@ -39,6 +39,12 @@ export function useEmails() {
       const emailAttachments = data.email_attachments || [];
       const customersArr = data.customers || [];
 
+      if (dbEmails.length === 0) {
+        setEmails([]);
+        setUsingLiveData(true);
+        return;
+      }
+
       if (dbEmails.length > 0) {
         const normalizeSkuCode = (sku: unknown) => String(sku ?? "").trim().toUpperCase();
 
