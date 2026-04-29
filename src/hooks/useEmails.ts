@@ -154,33 +154,42 @@ export function useEmails() {
 
   const updateStatus = useCallback(
     (id: string, status: Status) => {
+      addPendingPatch(id, { status });
       setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
 
       if (usingLiveData) {
-        invokeFunction("api-emails", { method: "PATCH", body: { id, status } }).catch(console.error);
+        invokeFunction("api-emails", { method: "PATCH", body: { id, status } })
+          .then(() => clearPendingPatch(id))
+          .catch(console.error);
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const markRead = useCallback(
     (id: string, is_read = true) => {
+      addPendingPatch(id, { is_read });
       setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_read } : e)));
       if (usingLiveData) {
-        invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } }).catch(console.error);
+        invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } })
+          .then(() => clearPendingPatch(id))
+          .catch(console.error);
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const setArchived = useCallback(
     (id: string, is_archived: boolean) => {
+      addPendingPatch(id, { is_archived });
       setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_archived } : e)));
       if (usingLiveData) {
-        invokeFunction("api-emails", { method: "PATCH", body: { id, is_archived } }).catch(console.error);
+        invokeFunction("api-emails", { method: "PATCH", body: { id, is_archived } })
+          .then(() => clearPendingPatch(id))
+          .catch(console.error);
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const deleteEmail = useCallback(
