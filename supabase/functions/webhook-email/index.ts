@@ -268,6 +268,19 @@ Deno.serve(withAudit("webhook-email", async (req) => {
         parsed.attachments = rawData._formAttachments;
       }
 
+      // Skip ingestion if this external_id was previously deleted (tombstoned).
+      // Prevents re-pushed Gmail messages from resurrecting user-deleted emails.
+      await sql`CREATE TABLE IF NOT EXISTS deleted_emails (
+        external_id text PRIMARY KEY,
+        deleted_at timestamptz NOT NULL DEFAULT now()
+      )`;
+      const tomb = await sql`SELECT 1 FROM deleted_emails WHERE external_id = ${parsed.external_id} LIMIT 1`;
+      if (tomb.length > 0) {
+        console.log("[webhook-email] Skipping tombstoned email:", parsed.external_id);
+        results.push({ skipped: true, external_id: parsed.external_id });
+        continue;
+      }
+
       // Upsert customer by email address (no customer_id needed)
       await sql`
         INSERT INTO customers (name, email)
