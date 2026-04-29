@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { invokeFunction } from "@/lib/api";
 import { Email, Customer, Status, Sentiment, Intent, ExtractedOrderItem, RecommendedSKU, AttachmentMeta, mockEmails } from "@/data/mockData";
 import { getProductsBySkuCodes } from "@/lib/productService";
@@ -12,6 +12,16 @@ export function useEmails() {
   const [emails, setEmails] = useState<Email[]>(mockEmails);
   const [isLoading, setIsLoading] = useState(true);
   const [usingLiveData, setUsingLiveData] = useState(false);
+  const pendingPatchesRef = useRef<Record<string, Partial<Email>>>({});
+  const pendingDeletedIdsRef = useRef<Set<string>>(new Set());
+
+  const addPendingPatch = useCallback((id: string, patch: Partial<Email>) => {
+    pendingPatchesRef.current[id] = { ...(pendingPatchesRef.current[id] || {}), ...patch };
+  }, []);
+
+  const clearPendingPatch = useCallback((id: string) => {
+    delete pendingPatchesRef.current[id];
+  }, []);
 
   const fetchEmails = useCallback(async () => {
     try {
@@ -120,7 +130,12 @@ export function useEmails() {
         // immediately on user action and the PATCH persists it; by the next poll
         // the server reflects that state. Trust server values so un-archive,
         // un-read, and status reverts propagate correctly.
-        setEmails(mapped);
+        const pendingDeleted = pendingDeletedIdsRef.current;
+        const pendingPatches = pendingPatchesRef.current;
+        setEmails(mapped
+          .filter((e) => !pendingDeleted.has(e.id))
+          .map((e) => ({ ...e, ...(pendingPatches[e.id] || {}) }))
+        );
         setUsingLiveData(true);
       }
     } catch (err) {
