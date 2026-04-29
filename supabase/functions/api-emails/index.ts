@@ -1,6 +1,22 @@
 import { getDb, corsHeaders } from "../_shared/db.ts";
 import { withAudit } from "../_shared/audit.ts";
 
+async function ensureDeletionSchema(sql: any) {
+  await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS deleted_at timestamptz`;
+  await sql`CREATE TABLE IF NOT EXISTS deleted_emails (
+    external_id text PRIMARY KEY,
+    email text,
+    subject text,
+    body_hash text,
+    message_timestamp timestamptz,
+    deleted_at timestamptz NOT NULL DEFAULT now()
+  )`;
+  await sql`ALTER TABLE deleted_emails ADD COLUMN IF NOT EXISTS email text`;
+  await sql`ALTER TABLE deleted_emails ADD COLUMN IF NOT EXISTS subject text`;
+  await sql`ALTER TABLE deleted_emails ADD COLUMN IF NOT EXISTS body_hash text`;
+  await sql`ALTER TABLE deleted_emails ADD COLUMN IF NOT EXISTS message_timestamp timestamptz`;
+}
+
 Deno.serve(withAudit("api-emails", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -13,7 +29,14 @@ Deno.serve(withAudit("api-emails", async (req) => {
 
     if (req.method === "GET") {
       // GET /api-emails - list all emails with order items
-      const emails = await sql`SELECT * FROM emails ORDER BY timestamp DESC`;
+      await ensureDeletionSchema(sql);
+      const emails = await sql`
+        SELECT e.*
+        FROM emails e
+        LEFT JOIN deleted_emails d ON d.external_id = e.external_id
+        WHERE e.deleted_at IS NULL AND d.external_id IS NULL
+        ORDER BY e.timestamp DESC
+      `;
       const emailIds = emails.map((e: any) => e.id);
 
       let orderItems: any[] = [];
@@ -67,24 +90,39 @@ Deno.serve(withAudit("api-emails", async (req) => {
         body = idsParam ? { ids: idsParam.split(",") } : {};
       }
       const { ids } = body;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return new Response(JSON.stringify({ error: "ids array required" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // Tombstone external_ids so re-ingested Gmail pushes don't resurrect deletions.
-      await sql`CREATE TABLE IF NOT EXISTS deleted_emails (
-        external_id text PRIMARY KEY,
-        deleted_at timestamptz NOT NULL DEFAULT now()
-      )`;
-      const toTomb = await sql`SELECT external_id FROM emails WHERE id = ANY(${ids}::uuid[]) AND external_id IS NOT NULL`;
-      if (toTomb.length > 0) {
-        const extIds = toTomb.map((r: any) => r.external_id);
-        await sql`INSERT INTO deleted_emails (external_id) SELECT unnest(${extIds}::text[]) ON CONFLICT (external_id) DO NOTHING`;
+      if (ids.some((value: unknown) => typeof value !== "string" || !uuidRegex.test(value))) {
+        return new Response(JSON.stringify({ error: "valid uuid ids required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      // Delete order_items first, then emails
-      await sql`DELETE FROM order_items WHERE email_id = ANY(${ids})`;
-      await sql`DELETE FROM emails WHERE id = ANY(${ids}::uuid[])`;
+
+      // Permanent UI delete: soft-delete the row and tombstone its source identity.
+      // This keeps later Gmail/n8n replays from recreating or re-showing the message.
+      await ensureDeletionSchema(sql);
+      await sql`
+        INSERT INTO deleted_emails (external_id, email, subject, body_hash, message_timestamp, deleted_at)
+        SELECT external_id, email, subject, md5(COALESCE(body, '')), timestamp, now()
+        FROM emails
+        WHERE id = ANY(${ids}::uuid[]) AND external_id IS NOT NULL
+        ON CONFLICT (external_id) DO UPDATE SET
+          email = COALESCE(EXCLUDED.email, deleted_emails.email),
+          subject = COALESCE(EXCLUDED.subject, deleted_emails.subject),
+          body_hash = COALESCE(EXCLUDED.body_hash, deleted_emails.body_hash),
+          message_timestamp = COALESCE(EXCLUDED.message_timestamp, deleted_emails.message_timestamp),
+          deleted_at = now()
+      `;
+      await sql`UPDATE emails SET deleted_at = now(), is_archived = true, updated_at = now() WHERE id = ANY(${ids}::uuid[])`;
+
+      try { await sql`DELETE FROM order_items WHERE email_id = ANY(${ids}::uuid[])`; } catch (cleanupError) { console.warn("[api-emails] order_items cleanup skipped", cleanupError); }
+      try { await sql`DELETE FROM email_attachments WHERE email_id = ANY(${ids}::uuid[])`; } catch (cleanupError) { console.warn("[api-emails] email_attachments cleanup skipped", cleanupError); }
+      try { await sql`DELETE FROM ai_reply_drafts WHERE email_id = ANY(${ids}::uuid[])`; } catch (cleanupError) { console.warn("[api-emails] ai_reply_drafts cleanup skipped", cleanupError); }
+
       return new Response(JSON.stringify({ success: true, deleted: ids.length }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
