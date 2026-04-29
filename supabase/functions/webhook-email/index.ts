@@ -231,7 +231,7 @@ Deno.serve(withAudit("webhook-email", async (req) => {
     } else {
       try {
         payload = JSON.parse(rawBody);
-      } catch (e) {
+      } catch (e: any) {
         console.error("[webhook-email] JSON parse failed:", e.message);
       }
     }
@@ -408,7 +408,7 @@ Deno.serve(withAudit("webhook-email", async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[webhook-email] Error:", error);
     try {
       await sql`INSERT INTO webhook_logs (endpoint, payload, status, error_message) VALUES ('webhook-email', ${JSON.stringify({ error: String(error) })}::jsonb, 'error', ${String(error)})`;
