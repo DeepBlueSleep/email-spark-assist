@@ -300,31 +300,32 @@ Deno.serve(withAudit("webhook-email", async (req) => {
         parsed.attachments = rawData._formAttachments;
       }
 
+      const externalIdCandidates = [...new Set([parsed.external_id, ...collectExternalIdCandidates(rawData)])];
+
       // Skip ingestion if this external_id was previously deleted (tombstoned).
       // Prevents re-pushed Gmail messages from resurrecting user-deleted emails.
       await sql`CREATE TABLE IF NOT EXISTS deleted_emails (
         external_id text PRIMARY KEY,
         deleted_at timestamptz NOT NULL DEFAULT now()
       )`;
-      const tomb = await sql`SELECT 1 FROM deleted_emails WHERE external_id = ${parsed.external_id} LIMIT 1`;
+      const tomb = await sql`SELECT 1 FROM deleted_emails WHERE external_id = ANY(${externalIdCandidates}::text[]) LIMIT 1`;
       if (tomb.length > 0) {
         console.log("[webhook-email] Skipping tombstoned email:", parsed.external_id);
         results.push({ skipped: true, external_id: parsed.external_id });
         continue;
       }
 
-      // Skip stale Gmail events: if the source internalDate isn't newer than our existing
-      // row's created_at, this is a label/flag re-push of an already-ingested message, not
-      // a new arrival. Ignore to avoid redundant upserts and downstream AI re-runs.
-      if (gmailInternalDateMs != null) {
-        const existing = await sql`SELECT created_at FROM emails WHERE external_id = ${parsed.external_id} LIMIT 1`;
-        if (existing.length > 0) {
-          const existingMs = new Date(existing[0].created_at).getTime();
-          if (gmailInternalDateMs <= existingMs) {
-            console.log("[webhook-email] Skipping stale event (internalDate <= existing created_at):", parsed.external_id, gmailInternalDateMs, "<=", existingMs);
-            results.push({ skipped: true, stale: true, external_id: parsed.external_id });
-            continue;
-          }
+      // Skip duplicate/stale Gmail update events. Gmail/n8n re-pushes existing messages for
+      // label/read/archive changes, and those should not upsert the row or trigger AI again.
+      const existing = await sql`SELECT id, external_id, created_at, timestamp FROM emails WHERE external_id = ANY(${externalIdCandidates}::text[]) ORDER BY created_at ASC LIMIT 1`;
+      if (existing.length > 0) {
+        const existingRow = existing[0];
+        const sourceMs = gmailInternalDateMs ?? toEpochMs(parsed.timestamp);
+        const existingSourceMs = toEpochMs(existingRow.timestamp) ?? toEpochMs(existingRow.created_at);
+        if (sourceMs == null || existingSourceMs == null || sourceMs <= existingSourceMs) {
+          console.log("[webhook-email] Skipping duplicate/stale event:", parsed.external_id, "source=", sourceMs, "existing=", existingSourceMs);
+          results.push({ skipped: true, stale: true, id: existingRow.id, external_id: existingRow.external_id });
+          continue;
         }
       }
 
