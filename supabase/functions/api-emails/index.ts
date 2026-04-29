@@ -93,10 +93,11 @@ Deno.serve(withAudit("api-emails", async (req) => {
     if (req.method === "PATCH") {
       // PATCH /api-emails - update email fields
       const body = await req.json();
-      const { id, ...fields } = body;
+      const { id, ids: rawIds, ...fields } = body;
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!id || !uuidRegex.test(id)) {
-        return new Response(JSON.stringify({ error: "id required" }), {
+      const ids = Array.isArray(rawIds) ? rawIds : id ? [id] : [];
+      if (ids.length === 0 || ids.some((value: unknown) => typeof value !== "string" || !uuidRegex.test(value))) {
+        return new Response(JSON.stringify({ error: "id or ids array required" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -117,10 +118,10 @@ Deno.serve(withAudit("api-emails", async (req) => {
           is_read = COALESCE(${isRead}, is_read),
           is_archived = COALESCE(${isArchived}, is_archived),
           updated_at = now()
-        WHERE id = ${id}
+        WHERE id = ANY(${ids}::uuid[])
       `;
 
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, updated: ids.length }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -128,7 +129,7 @@ Deno.serve(withAudit("api-emails", async (req) => {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("API emails error:", error);
     return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

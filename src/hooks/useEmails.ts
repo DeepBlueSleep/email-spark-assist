@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { invokeFunction } from "@/lib/api";
 import { Email, Customer, Status, Sentiment, Intent, ExtractedOrderItem, RecommendedSKU, AttachmentMeta, mockEmails } from "@/data/mockData";
 import { getProductsBySkuCodes } from "@/lib/productService";
@@ -12,6 +12,23 @@ export function useEmails() {
   const [emails, setEmails] = useState<Email[]>(mockEmails);
   const [isLoading, setIsLoading] = useState(true);
   const [usingLiveData, setUsingLiveData] = useState(false);
+  const pendingPatchesRef = useRef<Record<string, Partial<Email>>>({});
+  const pendingDeletedIdsRef = useRef<Set<string>>(new Set());
+
+  const addPendingPatch = useCallback((id: string, patch: Partial<Email>) => {
+    pendingPatchesRef.current[id] = { ...(pendingPatchesRef.current[id] || {}), ...patch };
+  }, []);
+
+  const clearPendingPatch = useCallback((id: string, keys?: (keyof Email)[]) => {
+    if (!keys) {
+      delete pendingPatchesRef.current[id];
+      return;
+    }
+    const current = pendingPatchesRef.current[id];
+    if (!current) return;
+    keys.forEach((key) => delete current[key]);
+    if (Object.keys(current).length === 0) delete pendingPatchesRef.current[id];
+  }, []);
 
   const fetchEmails = useCallback(async () => {
     try {
@@ -120,7 +137,12 @@ export function useEmails() {
         // immediately on user action and the PATCH persists it; by the next poll
         // the server reflects that state. Trust server values so un-archive,
         // un-read, and status reverts propagate correctly.
-        setEmails(mapped);
+        const pendingDeleted = pendingDeletedIdsRef.current;
+        const pendingPatches = pendingPatchesRef.current;
+        setEmails(mapped
+          .filter((e) => !pendingDeleted.has(e.id))
+          .map((e) => ({ ...e, ...(pendingPatches[e.id] || {}) }))
+        );
         setUsingLiveData(true);
       }
     } catch (err) {
@@ -139,43 +161,55 @@ export function useEmails() {
 
   const updateStatus = useCallback(
     (id: string, status: Status) => {
+      addPendingPatch(id, { status });
       setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
 
       if (usingLiveData) {
-        invokeFunction("api-emails", { method: "PATCH", body: { id, status } }).catch(console.error);
+        invokeFunction("api-emails", { method: "PATCH", body: { id, status } })
+          .then(() => clearPendingPatch(id, ["status"]))
+          .catch((err) => { clearPendingPatch(id, ["status"]); console.error(err); });
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const markRead = useCallback(
     (id: string, is_read = true) => {
+      addPendingPatch(id, { is_read });
       setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_read } : e)));
       if (usingLiveData) {
-        invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } }).catch(console.error);
+        invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } })
+          .then(() => clearPendingPatch(id, ["is_read"]))
+          .catch((err) => { clearPendingPatch(id, ["is_read"]); console.error(err); });
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const setArchived = useCallback(
     (id: string, is_archived: boolean) => {
+      addPendingPatch(id, { is_archived });
       setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_archived } : e)));
       if (usingLiveData) {
-        invokeFunction("api-emails", { method: "PATCH", body: { id, is_archived } }).catch(console.error);
+        invokeFunction("api-emails", { method: "PATCH", body: { id, is_archived } })
+          .then(() => clearPendingPatch(id, ["is_archived"]))
+          .catch((err) => { clearPendingPatch(id, ["is_archived"]); console.error(err); });
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const deleteEmail = useCallback(
     async (id: string) => {
+      pendingDeletedIdsRef.current.add(id);
       setEmails((prev) => prev.filter((e) => e.id !== id));
       if (usingLiveData) {
         try {
           await invokeFunction("api-emails", { method: "DELETE", body: { ids: [id] } });
+          pendingDeletedIdsRef.current.delete(id);
         } catch (err) {
           console.error("Failed to delete email:", err);
+          pendingDeletedIdsRef.current.delete(id);
         }
       }
     },
@@ -186,12 +220,15 @@ export function useEmails() {
     async (ids: string[]) => {
       if (ids.length === 0) return;
       const set = new Set(ids);
+      ids.forEach((id) => pendingDeletedIdsRef.current.add(id));
       setEmails((prev) => prev.filter((e) => !set.has(e.id)));
       if (usingLiveData) {
         try {
           await invokeFunction("api-emails", { method: "DELETE", body: { ids } });
+          ids.forEach((id) => pendingDeletedIdsRef.current.delete(id));
         } catch (err) {
           console.error("Failed to bulk delete:", err);
+          ids.forEach((id) => pendingDeletedIdsRef.current.delete(id));
         }
       }
     },
@@ -202,48 +239,59 @@ export function useEmails() {
     async (ids: string[], is_archived: boolean) => {
       if (ids.length === 0) return;
       const set = new Set(ids);
+      ids.forEach((id) => addPendingPatch(id, { is_archived }));
       setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_archived } : e)));
       if (usingLiveData) {
-        await Promise.all(
-          ids.map((id) =>
-            invokeFunction("api-emails", { method: "PATCH", body: { id, is_archived } }).catch(console.error)
-          )
-        );
+        try {
+          await invokeFunction("api-emails", { method: "PATCH", body: { ids, is_archived } });
+          ids.forEach((id) => clearPendingPatch(id, ["is_archived"]));
+        } catch (err) {
+          console.error("Failed to bulk archive:", err);
+          ids.forEach((id) => clearPendingPatch(id, ["is_archived"]));
+          setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_archived: !is_archived } : e)));
+        }
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const bulkMarkRead = useCallback(
     async (ids: string[], is_read: boolean) => {
       if (ids.length === 0) return;
       const set = new Set(ids);
+      ids.forEach((id) => addPendingPatch(id, { is_read }));
       setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read } : e)));
       if (usingLiveData) {
-        await Promise.all(
-          ids.map((id) =>
-            invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } }).catch(console.error)
-          )
-        );
+        try {
+          await invokeFunction("api-emails", { method: "PATCH", body: { ids, is_read } });
+          ids.forEach((id) => clearPendingPatch(id, ["is_read"]));
+        } catch (err) {
+          console.error("Failed to bulk mark read:", err);
+          ids.forEach((id) => clearPendingPatch(id, ["is_read"]));
+          setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read: !is_read } : e)));
+        }
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   const bulkSetStatus = useCallback(
     async (ids: string[], status: Status) => {
       if (ids.length === 0) return;
       const set = new Set(ids);
+      ids.forEach((id) => addPendingPatch(id, { status }));
       setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, status } : e)));
       if (usingLiveData) {
-        await Promise.all(
-          ids.map((id) =>
-            invokeFunction("api-emails", { method: "PATCH", body: { id, status } }).catch(console.error)
-          )
-        );
+        try {
+          await invokeFunction("api-emails", { method: "PATCH", body: { ids, status } });
+          ids.forEach((id) => clearPendingPatch(id, ["status"]));
+        } catch (err) {
+          console.error("Failed to bulk update status:", err);
+          ids.forEach((id) => clearPendingPatch(id, ["status"]));
+        }
       }
     },
-    [usingLiveData]
+    [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
   return { emails, isLoading, usingLiveData, updateStatus, markRead, setArchived, deleteEmail, bulkDelete, bulkSetArchived, bulkMarkRead, bulkSetStatus };
