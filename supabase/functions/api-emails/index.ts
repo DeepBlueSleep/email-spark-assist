@@ -33,8 +33,23 @@ Deno.serve(withAudit("api-emails", async (req) => {
       const emails = await sql`
         SELECT e.*
         FROM emails e
-        LEFT JOIN deleted_emails d ON d.external_id = e.external_id
-        WHERE e.deleted_at IS NULL AND d.external_id IS NULL
+        WHERE e.deleted_at IS NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM deleted_emails d
+            WHERE d.external_id = e.external_id
+               OR (
+                 lower(COALESCE(d.email, '')) = lower(COALESCE(e.email, ''))
+                 AND lower(trim(COALESCE(d.subject, ''))) = lower(trim(COALESCE(e.subject, '')))
+                 AND (
+                   d.body_hash = md5(COALESCE(e.body, ''))
+                   OR (
+                     d.message_timestamp IS NOT NULL
+                     AND ABS(EXTRACT(EPOCH FROM (d.message_timestamp - e.timestamp))) <= 300
+                   )
+                 )
+               )
+          )
         ORDER BY e.timestamp DESC
       `;
       const emailIds = emails.map((e: any) => e.id);
@@ -107,9 +122,9 @@ Deno.serve(withAudit("api-emails", async (req) => {
       await ensureDeletionSchema(sql);
       await sql`
         INSERT INTO deleted_emails (external_id, email, subject, body_hash, message_timestamp, deleted_at)
-        SELECT external_id, email, subject, md5(COALESCE(body, '')), timestamp, now()
+        SELECT COALESCE(external_id, 'local:' || id::text), email, subject, md5(COALESCE(body, '')), timestamp, now()
         FROM emails
-        WHERE id = ANY(${ids}::uuid[]) AND external_id IS NOT NULL
+        WHERE id = ANY(${ids}::uuid[])
         ON CONFLICT (external_id) DO UPDATE SET
           email = COALESCE(EXCLUDED.email, deleted_emails.email),
           subject = COALESCE(EXCLUDED.subject, deleted_emails.subject),
@@ -117,13 +132,37 @@ Deno.serve(withAudit("api-emails", async (req) => {
           message_timestamp = COALESCE(EXCLUDED.message_timestamp, deleted_emails.message_timestamp),
           deleted_at = now()
       `;
-      await sql`UPDATE emails SET deleted_at = now(), is_archived = true, updated_at = now() WHERE id = ANY(${ids}::uuid[])`;
+      const deletedRows = await sql`
+        WITH targets AS (
+          SELECT id, email, subject, md5(COALESCE(body, '')) AS body_hash, timestamp
+          FROM emails
+          WHERE id = ANY(${ids}::uuid[])
+        ), updated AS (
+          UPDATE emails e
+          SET deleted_at = now(), is_archived = true, updated_at = now()
+          FROM targets t
+          WHERE e.id = t.id
+             OR (
+               lower(COALESCE(e.email, '')) = lower(COALESCE(t.email, ''))
+               AND lower(trim(COALESCE(e.subject, ''))) = lower(trim(COALESCE(t.subject, '')))
+               AND (
+                 md5(COALESCE(e.body, '')) = t.body_hash
+                 OR ABS(EXTRACT(EPOCH FROM (e.timestamp - t.timestamp))) <= 300
+               )
+             )
+          RETURNING e.id
+        )
+        SELECT id FROM updated
+      `;
+      const deletedIds = deletedRows.map((row: any) => row.id);
 
-      try { await sql`DELETE FROM order_items WHERE email_id = ANY(${ids}::uuid[])`; } catch (cleanupError) { console.warn("[api-emails] order_items cleanup skipped", cleanupError); }
-      try { await sql`DELETE FROM email_attachments WHERE email_id = ANY(${ids}::uuid[])`; } catch (cleanupError) { console.warn("[api-emails] email_attachments cleanup skipped", cleanupError); }
-      try { await sql`DELETE FROM ai_reply_drafts WHERE email_id = ANY(${ids}::uuid[])`; } catch (cleanupError) { console.warn("[api-emails] ai_reply_drafts cleanup skipped", cleanupError); }
+      if (deletedIds.length > 0) {
+        try { await sql`DELETE FROM order_items WHERE email_id = ANY(${deletedIds}::uuid[])`; } catch (cleanupError) { console.warn("[api-emails] order_items cleanup skipped", cleanupError); }
+        try { await sql`DELETE FROM email_attachments WHERE email_id = ANY(${deletedIds}::uuid[])`; } catch (cleanupError) { console.warn("[api-emails] email_attachments cleanup skipped", cleanupError); }
+        try { await sql`DELETE FROM ai_reply_drafts WHERE email_id = ANY(${deletedIds}::uuid[])`; } catch (cleanupError) { console.warn("[api-emails] ai_reply_drafts cleanup skipped", cleanupError); }
+      }
 
-      return new Response(JSON.stringify({ success: true, deleted: ids.length }), {
+      return new Response(JSON.stringify({ success: true, deleted: deletedIds.length }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
