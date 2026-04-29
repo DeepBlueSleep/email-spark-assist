@@ -235,6 +235,17 @@ Deno.serve(withAudit("webhook-email", async (req) => {
       let inlineAttachments: string[] = [];
       let inlineAttachmentData: AttachmentData[] = [];
 
+      // Capture Gmail internalDate from any wrapper level (ms since epoch as string/number).
+      // Used below to skip stale events whose source timestamp isn't newer than what we already stored.
+      let gmailInternalDateMs: number | null = null;
+      const captureInternalDate = (obj: any) => {
+        if (obj && obj.internalDate != null && gmailInternalDateMs == null) {
+          const n = typeof obj.internalDate === "string" ? parseInt(obj.internalDate, 10) : Number(obj.internalDate);
+          if (!isNaN(n)) gmailInternalDateMs = n;
+        }
+      };
+      captureInternalDate(rawData);
+
       let unwrapDepth = 0;
       while (rawData.payload && typeof rawData.payload === "object" && unwrapDepth++ < 20) {
         if (rawData.attachments && Array.isArray(rawData.attachments)) {
@@ -254,6 +265,7 @@ Deno.serve(withAudit("webhook-email", async (req) => {
           console.log("[webhook-email] Extracted", inlineAttachments.length, "attachments at depth", unwrapDepth);
         }
         rawData = rawData.payload;
+        captureInternalDate(rawData);
       }
 
       const { parsed, raw } = parseEmail(rawData);
@@ -279,6 +291,21 @@ Deno.serve(withAudit("webhook-email", async (req) => {
         console.log("[webhook-email] Skipping tombstoned email:", parsed.external_id);
         results.push({ skipped: true, external_id: parsed.external_id });
         continue;
+      }
+
+      // Skip stale Gmail events: if the source internalDate isn't newer than our existing
+      // row's created_at, this is a label/flag re-push of an already-ingested message, not
+      // a new arrival. Ignore to avoid redundant upserts and downstream AI re-runs.
+      if (gmailInternalDateMs != null) {
+        const existing = await sql`SELECT created_at FROM emails WHERE external_id = ${parsed.external_id} LIMIT 1`;
+        if (existing.length > 0) {
+          const existingMs = new Date(existing[0].created_at).getTime();
+          if (gmailInternalDateMs <= existingMs) {
+            console.log("[webhook-email] Skipping stale event (internalDate <= existing created_at):", parsed.external_id, gmailInternalDateMs, "<=", existingMs);
+            results.push({ skipped: true, stale: true, external_id: parsed.external_id });
+            continue;
+          }
+        }
       }
 
       // Upsert customer by email address (no customer_id needed)
