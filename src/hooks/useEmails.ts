@@ -194,12 +194,15 @@ export function useEmails() {
 
   const deleteEmail = useCallback(
     async (id: string) => {
+      pendingDeletedIdsRef.current.add(id);
       setEmails((prev) => prev.filter((e) => e.id !== id));
       if (usingLiveData) {
         try {
           await invokeFunction("api-emails", { method: "DELETE", body: { ids: [id] } });
+          pendingDeletedIdsRef.current.delete(id);
         } catch (err) {
           console.error("Failed to delete email:", err);
+          pendingDeletedIdsRef.current.delete(id);
         }
       }
     },
@@ -210,12 +213,15 @@ export function useEmails() {
     async (ids: string[]) => {
       if (ids.length === 0) return;
       const set = new Set(ids);
+      ids.forEach((id) => pendingDeletedIdsRef.current.add(id));
       setEmails((prev) => prev.filter((e) => !set.has(e.id)));
       if (usingLiveData) {
         try {
           await invokeFunction("api-emails", { method: "DELETE", body: { ids } });
+          ids.forEach((id) => pendingDeletedIdsRef.current.delete(id));
         } catch (err) {
           console.error("Failed to bulk delete:", err);
+          ids.forEach((id) => pendingDeletedIdsRef.current.delete(id));
         }
       }
     },
