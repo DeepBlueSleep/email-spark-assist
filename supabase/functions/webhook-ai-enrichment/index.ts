@@ -147,7 +147,7 @@ Deno.serve(withAudit("webhook-ai-enrichment", async (req) => {
       JSON.stringify(items.length === 1 ? results[0] : { results }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI enrichment webhook error:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Internal server error" }),
