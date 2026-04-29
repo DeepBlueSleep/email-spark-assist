@@ -146,6 +146,26 @@ function parseEmail(raw: any): { parsed: ParsedEmail; raw: any } {
   return { parsed, raw };
 }
 
+function toEpochMs(value: any): number | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "number" || /^\d+$/.test(String(value))) {
+    const n = typeof value === "number" ? value : parseInt(String(value), 10);
+    return Number.isFinite(n) ? (n < 1_000_000_000_000 ? n * 1000 : n) : null;
+  }
+  const ms = Date.parse(String(value));
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function collectExternalIdCandidates(raw: any): string[] {
+  const headers = raw?.payload?.headers || [];
+  const headerMessageId = Array.isArray(headers)
+    ? headers.find((h: any) => h?.name?.toLowerCase() === "message-id")?.value
+    : null;
+  return [raw?.external_id, raw?.message_id, raw?.messageId, raw?.["message-id"], raw?.id, headerMessageId]
+    .filter((v) => typeof v === "string" && v.trim().length > 0)
+    .map((v) => v.trim());
+}
+
 Deno.serve(withAudit("webhook-email", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
