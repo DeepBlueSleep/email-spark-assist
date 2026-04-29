@@ -36,9 +36,9 @@ Deno.serve(withAudit("webhook-ai-enrichment", async (req) => {
 
       let emailRows;
       if (emailId) {
-        emailRows = await sql`SELECT id FROM emails WHERE id = ${emailId}`;
+        emailRows = await sql`SELECT id, status, ai_reply_draft FROM emails WHERE id = ${emailId}`;
       } else if (externalId) {
-        emailRows = await sql`SELECT id FROM emails WHERE external_id = ${externalId}`;
+        emailRows = await sql`SELECT id, status, ai_reply_draft FROM emails WHERE external_id = ${externalId}`;
       } else {
         results.push({ error: "email_id or external_id required", payload });
         continue;
@@ -50,6 +50,17 @@ Deno.serve(withAudit("webhook-ai-enrichment", async (req) => {
       }
 
       const dbEmailId = emailRows[0].id;
+
+      // n8n/Gmail can re-run AI after label/read/archive updates. If this email
+      // is already enriched, ignore duplicate AI payloads unless explicitly forced.
+      const forceReprocess = payload.force_reprocess === true || payload.force === true;
+      const alreadyEnriched =
+        ["AI Processed", "Irrelevant"].includes(emailRows[0].status) ||
+        String(emailRows[0].ai_reply_draft || "").trim().length > 0;
+      if (alreadyEnriched && !forceReprocess) {
+        results.push({ skipped: true, duplicate_ai_enrichment: true, email_id: dbEmailId, external_id: externalId });
+        continue;
+      }
 
       // Build update fields
       const vals: any = {};
