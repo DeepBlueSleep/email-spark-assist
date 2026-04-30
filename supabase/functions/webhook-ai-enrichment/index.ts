@@ -12,7 +12,7 @@ Deno.serve(withAudit("webhook-ai-enrichment", async (req) => {
     // Ensure relevance columns exist (idempotent guard for NeonDB)
     await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_relevant boolean NOT NULL DEFAULT true`;
     await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS relevance_reason text DEFAULT ''`;
-    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS deleted_at timestamptz`;
+    
 
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
     if (webhookSecret) {
@@ -37,9 +37,9 @@ Deno.serve(withAudit("webhook-ai-enrichment", async (req) => {
 
       let emailRows;
       if (emailId) {
-        emailRows = await sql`SELECT id, status, ai_reply_draft, deleted_at FROM emails WHERE id = ${emailId}`;
+        emailRows = await sql`SELECT id, status, ai_reply_draft FROM emails WHERE id = ${emailId}`;
       } else if (externalId) {
-        emailRows = await sql`SELECT id, status, ai_reply_draft, deleted_at FROM emails WHERE external_id = ${externalId}`;
+        emailRows = await sql`SELECT id, status, ai_reply_draft FROM emails WHERE external_id = ${externalId}`;
       } else {
         results.push({ error: "email_id or external_id required", payload });
         continue;
@@ -51,11 +51,6 @@ Deno.serve(withAudit("webhook-ai-enrichment", async (req) => {
       }
 
       const dbEmailId = emailRows[0].id;
-
-      if (emailRows[0].deleted_at) {
-        results.push({ skipped: true, deleted: true, email_id: dbEmailId, external_id: externalId });
-        continue;
-      }
 
       // n8n/Gmail can re-run AI after label/read/archive updates. If this email
       // is already enriched, ignore duplicate AI payloads unless explicitly forced.

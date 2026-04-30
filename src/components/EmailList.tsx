@@ -2,14 +2,15 @@ import { useState, useMemo } from "react";
 import { Email, Sentiment, Intent, Status } from "@/data/mockData";
 import { StatusDef } from "@/hooks/useStatuses";
 import {
-  Search, Filter, Mail, ChevronDown, Paperclip, Archive, ArchiveRestore,
-  ChevronLeft, Trash2, MailOpen, X, Send, XCircle, AlertTriangle,
+  Search, Filter, MessageSquare, ChevronDown, Paperclip,
+  ChevronLeft, MailOpen, X, Send, XCircle, AlertTriangle,
+  Filter as FilterIcon, RotateCcw,
 } from "lucide-react";
 import { cn, formatLabel } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
 const sentimentDotClass: Record<Sentiment, string> = {
@@ -42,25 +43,22 @@ interface EmailListProps {
   selectedId: string | null;
   onSelect: (email: Email) => void;
   statuses: StatusDef[];
-  onArchive?: (email: Email, archived: boolean) => void;
-  onDelete?: (email: Email) => void;
-  onBulkArchive?: (ids: string[], archived: boolean) => void;
-  onBulkDelete?: (ids: string[]) => void;
+  onToggleRelevant?: (email: Email, isRelevant: boolean) => void;
+  onBulkSetRelevant?: (ids: string[], isRelevant: boolean) => void;
   onBulkMarkRead?: (ids: string[], read: boolean) => void;
   onBulkApprove?: (ids: string[]) => void;
   onBulkEscalate?: (ids: string[], reason: string) => void;
-  showArchiveBulk?: boolean;
-  showDeleteBulk?: boolean;
   showWorkflowBulk?: boolean;
+  currentTab?: "relevant" | "irrelevant";
   title?: string;
   onCollapse?: () => void;
 }
 
 export function EmailList({
-  emails, selectedId, onSelect, statuses, onArchive, onDelete,
-  onBulkArchive, onBulkDelete, onBulkMarkRead, onBulkApprove, onBulkEscalate,
-  showArchiveBulk = true, showDeleteBulk = false, showWorkflowBulk = false,
-  title = "Inbox", onCollapse,
+  emails, selectedId, onSelect, statuses,
+  onToggleRelevant, onBulkSetRelevant, onBulkMarkRead, onBulkApprove, onBulkEscalate,
+  showWorkflowBulk = false, currentTab = "relevant",
+  title = "Messages", onCollapse,
 }: EmailListProps) {
   const [search, setSearch] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<Sentiment | "all">("all");
@@ -71,6 +69,8 @@ export function EmailList({
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showEscalateConfirm, setShowEscalateConfirm] = useState(false);
   const [bulkEscalateReason, setBulkEscalateReason] = useState("");
+
+  const isIrrelevantTab = currentTab === "irrelevant";
 
   const filtered = useMemo(() => emails.filter((e) => {
     const matchSearch = !search || e.customer_name.toLowerCase().includes(search.toLowerCase()) || e.subject.toLowerCase().includes(search.toLowerCase());
@@ -114,22 +114,19 @@ export function EmailList({
     return d.toLocaleDateString([], { month: "short", day: "numeric" });
   };
 
-  // Determine bulk archive label based on majority state in selection
-  const allSelectedArchived = selectedArr.length > 0 && selectedArr.every((e) => e.is_archived);
-
   return (
     <div className="flex flex-col h-full bg-card border-r border-border">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2 mb-3">
-          <Mail className="w-5 h-5 text-primary" />
+          <MessageSquare className="w-5 h-5 text-primary" />
           <h2 className="font-semibold text-foreground">{title}</h2>
           <span className="ml-auto text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{emails.length}</span>
           {onCollapse && (
             <button
               onClick={onCollapse}
               className="p-1 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              title="Collapse email list"
+              title="Collapse message list"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -139,7 +136,7 @@ export function EmailList({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search emails..."
+            placeholder="Search messages..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-sm bg-secondary rounded-lg border-0 outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
@@ -209,7 +206,7 @@ export function EmailList({
                     <XCircle className="w-3 h-3" /> Escalate
                   </button>
                 )}
-                {onBulkMarkRead && (
+                {onBulkMarkRead && !isIrrelevantTab && (
                   <button
                     onClick={() => { onBulkMarkRead(selectedArr.map((e) => e.id), true); clearSelection(); }}
                     className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
@@ -218,43 +215,15 @@ export function EmailList({
                     <MailOpen className="w-3.5 h-3.5" />
                   </button>
                 )}
-                {onBulkArchive && showArchiveBulk && (
+                {onBulkSetRelevant && (
                   <button
-                    onClick={() => { onBulkArchive(selectedArr.map((e) => e.id), !allSelectedArchived); clearSelection(); }}
-                    className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                    title={allSelectedArchived ? "Unarchive" : "Archive"}
+                    onClick={() => { onBulkSetRelevant(selectedArr.map((e) => e.id), isIrrelevantTab); clearSelection(); }}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                    title={isIrrelevantTab ? "Mark as relevant" : "Mark as irrelevant"}
                   >
-                    {allSelectedArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+                    {isIrrelevantTab ? <RotateCcw className="w-3 h-3" /> : <FilterIcon className="w-3 h-3" />}
+                    {isIrrelevantTab ? "Mark relevant" : "Mark irrelevant"}
                   </button>
-                )}
-                {onBulkDelete && showDeleteBulk && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                        title="Delete permanently"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete {selectedArr.length} email{selectedArr.length === 1 ? "" : "s"}?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete the selected emails. This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => { onBulkDelete(selectedArr.map((e) => e.id)); clearSelection(); }}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 )}
                 <button
                   onClick={clearSelection}
@@ -271,22 +240,22 @@ export function EmailList({
         </div>
       )}
 
-      {/* Bulk Approve confirmation (sensitive: bypasses per-email credit check) */}
+      {/* Bulk Approve confirmation (sensitive: bypasses per-message credit check) */}
       <AlertDialog open={showApproveConfirm} onOpenChange={setShowApproveConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Bulk approve {selectedArr.length} email{selectedArr.length === 1 ? "" : "s"}?
+              Bulk approve {selectedArr.length} message{selectedArr.length === 1 ? "" : "s"}?
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 <p>
-                  This will mark all selected emails as <span className="font-semibold text-foreground">Replied</span> and complete them in bulk.
+                  This will mark all selected messages as <span className="font-semibold text-foreground">Replied</span> and complete them in bulk.
                 </p>
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-foreground/80 space-y-1">
-                  <p className="font-semibold flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Bulk approve skips per-email credit checks.</p>
-                  <p>For order or credit-related emails, open them individually to verify customer credit before approving.</p>
+                  <p className="font-semibold flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Bulk approve skips per-message credit checks.</p>
+                  <p>For order or credit-related messages, open them individually to verify customer credit before approving.</p>
                 </div>
                 {(() => {
                   const sensitive = selectedArr.filter((e) =>
@@ -295,7 +264,7 @@ export function EmailList({
                   if (sensitive.length === 0) return null;
                   return (
                     <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
-                      <p className="font-semibold">{sensitive.length} email{sensitive.length === 1 ? "" : "s"} contain credit-relevant intents:</p>
+                      <p className="font-semibold">{sensitive.length} message{sensitive.length === 1 ? "" : "s"} contain credit-relevant intents:</p>
                       <ul className="list-disc list-inside space-y-0.5 max-h-24 overflow-y-auto">
                         {sensitive.slice(0, 5).map((e) => (
                           <li key={e.id} className="truncate">{e.customer_name} — {e.intent}</li>
@@ -328,9 +297,9 @@ export function EmailList({
       <AlertDialog open={showEscalateConfirm} onOpenChange={(o) => { setShowEscalateConfirm(o); if (!o) setBulkEscalateReason(""); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Escalate {selectedArr.length} email{selectedArr.length === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogTitle>Escalate {selectedArr.length} message{selectedArr.length === 1 ? "" : "s"}?</AlertDialogTitle>
             <AlertDialogDescription>
-              These emails will be marked as <span className="font-semibold text-foreground">Escalated</span> and removed from the active workflow.
+              These messages will be marked as <span className="font-semibold text-foreground">Escalated</span> and removed from the active workflow.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <textarea
@@ -358,7 +327,7 @@ export function EmailList({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Email items */}
+      {/* Message items */}
       <div className="flex-1 overflow-y-auto">
         {filtered.map((email) => {
           const checked = selectedIds.has(email.id);
@@ -379,7 +348,7 @@ export function EmailList({
                   <Checkbox
                     checked={checked}
                     onCheckedChange={() => toggleOne(email.id)}
-                    aria-label="Select email"
+                    aria-label="Select message"
                   />
                 </div>
                 <button
@@ -411,52 +380,24 @@ export function EmailList({
                   </div>
                 </button>
               </div>
-              <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {onArchive && (
+              {onToggleRelevant && (
+                <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={(e) => { e.stopPropagation(); onArchive(email, !email.is_archived); }}
+                    onClick={(e) => { e.stopPropagation(); onToggleRelevant(email, isIrrelevantTab); }}
                     className="p-1.5 rounded-md hover:bg-background/80"
-                    title={email.is_archived ? "Unarchive" : "Archive"}
+                    title={isIrrelevantTab ? "Mark as relevant" : "Mark as irrelevant"}
                   >
-                    {email.is_archived ? <ArchiveRestore className="w-3.5 h-3.5 text-muted-foreground" /> : <Archive className="w-3.5 h-3.5 text-muted-foreground" />}
+                    {isIrrelevantTab
+                      ? <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" />
+                      : <FilterIcon className="w-3.5 h-3.5 text-muted-foreground" />}
                   </button>
-                )}
-                {onDelete && email.is_archived && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-1.5 rounded-md hover:bg-destructive/10"
-                        title="Delete permanently"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this email?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete "{email.subject}" from {email.customer_name}. This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => onDelete(email)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           );
         })}
         {filtered.length === 0 && (
-          <div className="p-8 text-center text-sm text-muted-foreground">No emails match your filters</div>
+          <div className="p-8 text-center text-sm text-muted-foreground">No messages match your filters</div>
         )}
       </div>
     </div>
