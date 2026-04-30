@@ -196,53 +196,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     }
   };
 
-  const handleEscalate = async () => {
-    if (!escalateReason.trim()) return;
-
-    // Fire-and-forget the autocount workflow log (non-blocking)
-    pushEscalation({
-      email_id: email.id,
-      customer_code: email.customer?.code || null,
-      customer_name: email.customer_name,
-      customer_email: email.email,
-      subject: email.subject,
-      intent: email.intent,
-      triggered_at: new Date().toISOString(),
-      reason: escalateReason,
-    }).catch((e) => console.warn("autocount escalate log failed:", e));
-
-    // Optimistic UI update — user sees the change immediately
-    try { onStatusChange(email.id, "Escalated"); } catch (e) { console.warn("onStatusChange threw:", e); }
-    toast.success("Email escalated");
-    logClientAudit({
-      action: "escalate_email",
-      target_type: "email",
-      target_id: email.id,
-      status: "success",
-      metadata: { reason: escalateReason, customer_email: email.email },
-    });
-    setShowEscalate(false);
-
-    // Persist status — retry once on transient network error
-    const persist = () =>
-      invokeFunction("api-emails", {
-        method: "PATCH",
-        body: { id: email.id, status: "Escalated" },
-      });
-
-    try {
-      await persist();
-    } catch (err1) {
-      console.warn("Escalate persist attempt 1 failed, retrying:", err1);
-      try {
-        await new Promise((r) => setTimeout(r, 600));
-        await persist();
-      } catch (err2) {
-        console.error("Escalate persist failed after retry:", err2);
-        toast.error(`Status saved locally but couldn't sync: ${err2 instanceof Error ? err2.message : "network error"}`);
-      }
-    }
-  };
 
   const handleStockInProcess = async () => {
     setIsFilingStock(true);
