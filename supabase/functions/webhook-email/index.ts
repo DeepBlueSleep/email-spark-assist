@@ -48,6 +48,7 @@ function parseN8nParsedFormat(raw: any): ParsedEmail | null {
       }
     }
   }
+  const inReplyTo = raw.inReplyTo || raw.in_reply_to || raw.headers?.["in-reply-to"] || "";
   return {
     customer_name,
     customer_email,
@@ -57,6 +58,8 @@ function parseN8nParsedFormat(raw: any): ParsedEmail | null {
     timestamp: raw.date || new Date().toISOString(),
     attachments,
     attachmentData,
+    thread_external_id: raw.threadId || raw.thread_id || "",
+    in_reply_to: typeof inReplyTo === "string" ? inReplyTo : "",
   };
 }
 
