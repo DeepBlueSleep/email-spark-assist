@@ -157,7 +157,7 @@ const Index = () => {
               onBulkSetRelevant={bulkSetRelevant}
               onBulkMarkRead={tab === "relevant" ? bulkMarkRead : undefined}
               onBulkApprove={tab === "relevant" ? (ids) => bulkSetStatus(ids, "Replied") : undefined}
-              onBulkEscalate={tab === "relevant" ? (ids) => bulkSetStatus(ids, "Escalated") : undefined}
+              
               showWorkflowBulk={tab === "relevant"}
               currentTab={tab}
               title={tabConfig[tab].label}

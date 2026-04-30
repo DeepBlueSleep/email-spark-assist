@@ -28,10 +28,8 @@ interface CreditCheckResult {
 
 export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange, orderTotal = 0, draftOrderItems = [] }: ActionButtonsProps) {
   const [showConfirm, setShowConfirm] = useState(false);
-  const [showEscalate, setShowEscalate] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
   const [showStockReview, setShowStockReview] = useState(false);
-  const [escalateReason, setEscalateReason] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isFilingStock, setIsFilingStock] = useState(false);
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
@@ -198,53 +196,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
     }
   };
 
-  const handleEscalate = async () => {
-    if (!escalateReason.trim()) return;
-
-    // Fire-and-forget the autocount workflow log (non-blocking)
-    pushEscalation({
-      email_id: email.id,
-      customer_code: email.customer?.code || null,
-      customer_name: email.customer_name,
-      customer_email: email.email,
-      subject: email.subject,
-      intent: email.intent,
-      triggered_at: new Date().toISOString(),
-      reason: escalateReason,
-    }).catch((e) => console.warn("autocount escalate log failed:", e));
-
-    // Optimistic UI update — user sees the change immediately
-    try { onStatusChange(email.id, "Escalated"); } catch (e) { console.warn("onStatusChange threw:", e); }
-    toast.success("Email escalated");
-    logClientAudit({
-      action: "escalate_email",
-      target_type: "email",
-      target_id: email.id,
-      status: "success",
-      metadata: { reason: escalateReason, customer_email: email.email },
-    });
-    setShowEscalate(false);
-
-    // Persist status — retry once on transient network error
-    const persist = () =>
-      invokeFunction("api-emails", {
-        method: "PATCH",
-        body: { id: email.id, status: "Escalated" },
-      });
-
-    try {
-      await persist();
-    } catch (err1) {
-      console.warn("Escalate persist attempt 1 failed, retrying:", err1);
-      try {
-        await new Promise((r) => setTimeout(r, 600));
-        await persist();
-      } catch (err2) {
-        console.error("Escalate persist failed after retry:", err2);
-        toast.error(`Status saved locally but couldn't sync: ${err2 instanceof Error ? err2.message : "network error"}`);
-      }
-    }
-  };
 
   const handleStockInProcess = async () => {
     setIsFilingStock(true);
@@ -328,13 +279,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         >
           <Send className="w-4 h-4" />
           Approve and Send to Autocount
-        </button>
-        <button
-          onClick={() => setShowEscalate(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-border bg-card hover:bg-accent transition-colors"
-        >
-          <AlertTriangle className="w-4 h-4 text-amber-600" />
-          Escalate
         </button>
         <button
           onClick={async () => {
@@ -455,31 +399,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         </div>
       )}
 
-      {showEscalate && (
-        <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowEscalate(false)}>
-          <div className="bg-card rounded-xl shadow-elevated p-6 max-w-md w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <h4 className="text-lg font-semibold mb-2">Reject / Escalate</h4>
-            <p className="text-sm text-muted-foreground mb-3">Please provide a reason for escalation:</p>
-            <textarea
-              value={escalateReason}
-              onChange={(e) => setEscalateReason(e.target.value)}
-              rows={3}
-              placeholder="Enter reason..."
-              className="w-full text-sm p-3 rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20 resize-y"
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowEscalate(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
-              <button
-                onClick={handleEscalate}
-                className="px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
-                disabled={!escalateReason.trim()}
-              >
-                Escalate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
