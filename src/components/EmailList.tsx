@@ -195,15 +195,6 @@ export function EmailList({
                     <Send className="w-3 h-3" /> Approve
                   </button>
                 )}
-                {onBulkEscalate && showWorkflowBulk && (
-                  <button
-                    onClick={() => setShowEscalateConfirm(true)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                    title="Escalate selected"
-                  >
-                    <XCircle className="w-3 h-3" /> Escalate
-                  </button>
-                )}
                 {onBulkMarkRead && !isIrrelevantTab && (
                   <button
                     onClick={() => { onBulkMarkRead(selectedArr.map((e) => e.id), true); clearSelection(); }}

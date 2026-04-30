@@ -330,13 +330,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
           Approve and Send to Autocount
         </button>
         <button
-          onClick={() => setShowEscalate(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-border bg-card hover:bg-accent transition-colors"
-        >
-          <AlertTriangle className="w-4 h-4 text-amber-600" />
-          Escalate
-        </button>
-        <button
           onClick={async () => {
             onStatusChange(email.id, "Escalated");
             try {
