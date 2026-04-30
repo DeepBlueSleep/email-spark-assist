@@ -145,6 +145,8 @@ function parseFlatFormat(raw: any): ParsedEmail {
     timestamp: raw.timestamp || raw.date || new Date().toISOString(),
     attachments: raw.attachments || [],
     attachmentData: [],
+    thread_external_id: raw.thread_external_id || raw.threadId || raw.thread_id || "",
+    in_reply_to: raw.in_reply_to || raw.inReplyTo || raw["in-reply-to"] || "",
   };
 }
 
