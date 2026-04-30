@@ -110,6 +110,8 @@ function parseGmailRawFormat(raw: any): ParsedEmail | null {
       : getHeader("Date") || new Date().toISOString(),
     attachments: raw.attachments || [],
     attachmentData: [],
+    thread_external_id: raw.threadId || "",
+    in_reply_to: getHeader("In-Reply-To") || "",
   };
 }
 
