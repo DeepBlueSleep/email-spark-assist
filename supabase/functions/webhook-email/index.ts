@@ -17,6 +17,8 @@ interface ParsedEmail {
   timestamp: string;
   attachments: string[];
   attachmentData: AttachmentData[];
+  thread_external_id?: string;
+  in_reply_to?: string;
 }
 
 function parseN8nParsedFormat(raw: any): ParsedEmail | null {
