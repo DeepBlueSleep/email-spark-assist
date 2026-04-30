@@ -346,14 +346,59 @@ Deno.serve(withAudit("webhook-email", async (req) => {
       const intentConfVal = raw.intent_confidence ?? null;
       const aiDraftVal = raw.ai_reply_draft ?? null;
 
+      // ---- Thread resolution ----
+      // Resolve or create a message_threads row, then link this email to it.
+      // Priority:
+      //   1. thread_external_id from the payload (Gmail threadId)
+      //   2. in_reply_to header → look up the parent email's thread
+      //   3. fall back to a new thread keyed off the message's external_id
+      const threadExternalIdRaw = (parsed.thread_external_id || "").trim();
+      const inReplyToRaw = (parsed.in_reply_to || "").trim();
+
+      let threadId: string | null = null;
+      let threadExternalId: string | null = threadExternalIdRaw || null;
+
+      if (!threadExternalId && inReplyToRaw) {
+        const parent = await sql`
+          SELECT thread_id, thread_external_id FROM emails
+          WHERE external_id = ${inReplyToRaw}
+          LIMIT 1
+        `;
+        if (parent.length > 0) {
+          threadId = parent[0].thread_id || null;
+          threadExternalId = parent[0].thread_external_id || null;
+        }
+      }
+
+      if (!threadId) {
+        const lookupKey = threadExternalId || parsed.external_id;
+        const threadRows = await sql`
+          INSERT INTO message_threads (thread_external_id, channel, subject)
+          VALUES (${lookupKey}, 'email', ${parsed.subject})
+          ON CONFLICT (thread_external_id) DO UPDATE SET
+            subject = COALESCE(NULLIF(EXCLUDED.subject, '(No Subject)'), message_threads.subject),
+            updated_at = now()
+          RETURNING id
+        `;
+        threadId = threadRows[0].id;
+        threadExternalId = lookupKey;
+      }
+
+      // Compute message_position within the thread (1-indexed by timestamp)
+      const posRows = await sql`
+        SELECT COUNT(*)::int AS c FROM emails WHERE thread_id = ${threadId}
+      `;
+      const messagePosition = (Number(posRows[0]?.c) || 0) + 1;
+
       const rows = await sql`
-        INSERT INTO emails (external_id, customer_name, email, subject, body, timestamp, sentiment, sentiment_confidence, intent, intent_confidence, ai_reply_draft, status, attachments)
+        INSERT INTO emails (external_id, customer_name, email, subject, body, timestamp, sentiment, sentiment_confidence, intent, intent_confidence, ai_reply_draft, status, attachments, thread_id, thread_external_id, in_reply_to, message_position)
         VALUES (
           ${parsed.external_id}, ${parsed.customer_name}, ${parsed.customer_email},
           ${parsed.subject}, ${parsed.body}, ${parsed.timestamp},
           ${sentimentVal ?? "Neutral"}, ${sentimentConfVal ?? 0},
           ${intentVal ?? "General Question"}, ${intentConfVal ?? 0},
-          ${aiDraftVal ?? ""}, ${raw.status || "New"}, ${parsed.attachments}
+          ${aiDraftVal ?? ""}, ${raw.status || "New"}, ${parsed.attachments},
+          ${threadId}, ${threadExternalId}, ${inReplyToRaw || null}, ${messagePosition}
         )
         ON CONFLICT (external_id) DO UPDATE SET
           customer_name = EXCLUDED.customer_name, email = EXCLUDED.email,
@@ -363,14 +408,18 @@ Deno.serve(withAudit("webhook-email", async (req) => {
           intent = COALESCE(${intentVal}, emails.intent),
           intent_confidence = COALESCE(${intentConfVal}, emails.intent_confidence),
           ai_reply_draft = COALESCE(NULLIF(${aiDraftVal}, ''), emails.ai_reply_draft),
-          attachments = EXCLUDED.attachments, updated_at = now()
+          attachments = EXCLUDED.attachments,
+          thread_id = COALESCE(emails.thread_id, EXCLUDED.thread_id),
+          thread_external_id = COALESCE(emails.thread_external_id, EXCLUDED.thread_external_id),
+          in_reply_to = COALESCE(NULLIF(EXCLUDED.in_reply_to, ''), emails.in_reply_to),
+          updated_at = now()
           -- NOTE: Do NOT overwrite status, is_read, or is_archived on conflict.
           -- These reflect user actions in the dashboard and must persist across re-ingestions.
-        RETURNING id, external_id
+        RETURNING id, external_id, thread_id
       `;
 
       const email = rows[0];
-      console.log("[webhook-email] Upserted email:", email.id, email.external_id);
+      console.log("[webhook-email] Upserted email:", email.id, email.external_id, "thread:", email.thread_id);
 
       // Store attachment base64 data
       if (parsed.attachmentData.length > 0) {
