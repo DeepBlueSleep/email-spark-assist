@@ -28,10 +28,8 @@ interface CreditCheckResult {
 
 export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange, orderTotal = 0, draftOrderItems = [] }: ActionButtonsProps) {
   const [showConfirm, setShowConfirm] = useState(false);
-  const [showEscalate, setShowEscalate] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
   const [showStockReview, setShowStockReview] = useState(false);
-  const [escalateReason, setEscalateReason] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isFilingStock, setIsFilingStock] = useState(false);
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
