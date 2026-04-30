@@ -134,6 +134,17 @@ export default function AuditLogs() {
           </select>
         </div>
         <button
+          onClick={() => setErrorsOnly((v) => !v)}
+          className={cn(
+            "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors",
+            errorsOnly
+              ? "bg-destructive/10 border-destructive/30 text-destructive"
+              : "border-border hover:bg-accent"
+          )}
+        >
+          Errors only
+        </button>
+        <button
           onClick={load}
           className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:bg-accent text-sm"
         >
@@ -141,7 +152,7 @@ export default function AuditLogs() {
           Refresh
         </button>
         <div className="ml-auto text-xs text-muted-foreground">
-          {filtered.length} entr{filtered.length === 1 ? "y" : "ies"}
+          {filtered.length} of {logs.length} entr{logs.length === 1 ? "y" : "ies"}
         </div>
       </div>
 
