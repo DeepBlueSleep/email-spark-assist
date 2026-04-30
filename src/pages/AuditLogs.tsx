@@ -57,12 +57,13 @@ export default function AuditLogs() {
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
+  const [errorsOnly, setErrorsOnly] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = { limit: "300" };
+      const params: Record<string, string> = { limit: "1000" };
       if (category) params.category = category;
       if (search) params.search = search;
       const data = await invokeFunction("api-audit-logs", { params });
@@ -82,7 +83,10 @@ export default function AuditLogs() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
-  const filtered = useMemo(() => logs, [logs]);
+  const filtered = useMemo(() => {
+    if (!errorsOnly) return logs;
+    return logs.filter((l) => !!l.error || (l.status && (l.status === "error" || l.status.startsWith("4") || l.status.startsWith("5"))));
+  }, [logs, errorsOnly]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
