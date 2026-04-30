@@ -455,31 +455,6 @@ export function ActionButtons({ email, replyDraft, selectedTone, onStatusChange,
         </div>
       )}
 
-      {showEscalate && (
-        <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowEscalate(false)}>
-          <div className="bg-card rounded-xl shadow-elevated p-6 max-w-md w-full mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <h4 className="text-lg font-semibold mb-2">Reject / Escalate</h4>
-            <p className="text-sm text-muted-foreground mb-3">Please provide a reason for escalation:</p>
-            <textarea
-              value={escalateReason}
-              onChange={(e) => setEscalateReason(e.target.value)}
-              rows={3}
-              placeholder="Enter reason..."
-              className="w-full text-sm p-3 rounded-lg bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/20 resize-y"
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowEscalate(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent">Cancel</button>
-              <button
-                onClick={handleEscalate}
-                className="px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
-                disabled={!escalateReason.trim()}
-              >
-                Escalate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

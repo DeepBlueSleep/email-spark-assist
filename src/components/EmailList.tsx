@@ -67,8 +67,6 @@ export function EmailList({
   const [showFilters, setShowFilters] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
-  const [showEscalateConfirm, setShowEscalateConfirm] = useState(false);
-  const [bulkEscalateReason, setBulkEscalateReason] = useState("");
 
   const isIrrelevantTab = currentTab === "irrelevant";
 
@@ -288,40 +286,6 @@ export function EmailList({
               className="bg-sentiment-positive text-primary-foreground hover:opacity-90"
             >
               Approve {selectedArr.length}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Bulk Escalate confirmation */}
-      <AlertDialog open={showEscalateConfirm} onOpenChange={(o) => { setShowEscalateConfirm(o); if (!o) setBulkEscalateReason(""); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Escalate {selectedArr.length} message{selectedArr.length === 1 ? "" : "s"}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              These messages will be marked as <span className="font-semibold text-foreground">Escalated</span> and removed from the active workflow.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <textarea
-            value={bulkEscalateReason}
-            onChange={(e) => setBulkEscalateReason(e.target.value)}
-            placeholder="Reason for escalation (required)…"
-            className="w-full text-sm p-2 rounded-md bg-secondary border border-border outline-none focus:ring-2 focus:ring-primary/30 min-h-[80px]"
-          />
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={!bulkEscalateReason.trim()}
-              onClick={() => {
-                if (!bulkEscalateReason.trim()) return;
-                onBulkEscalate?.(selectedArr.map((e) => e.id), bulkEscalateReason.trim());
-                clearSelection();
-                setShowEscalateConfirm(false);
-                setBulkEscalateReason("");
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Escalate {selectedArr.length}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
