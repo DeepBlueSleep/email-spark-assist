@@ -166,21 +166,6 @@ function collectExternalIdCandidates(raw: any): string[] {
     .map((v) => v.trim());
 }
 
-async function ensureDeletionSchema(sql: any) {
-  await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS deleted_at timestamptz`;
-  await sql`CREATE TABLE IF NOT EXISTS deleted_emails (
-    external_id text PRIMARY KEY,
-    email text,
-    subject text,
-    body_hash text,
-    message_timestamp timestamptz,
-    deleted_at timestamptz NOT NULL DEFAULT now()
-  )`;
-  await sql`ALTER TABLE deleted_emails ADD COLUMN IF NOT EXISTS email text`;
-  await sql`ALTER TABLE deleted_emails ADD COLUMN IF NOT EXISTS subject text`;
-  await sql`ALTER TABLE deleted_emails ADD COLUMN IF NOT EXISTS body_hash text`;
-  await sql`ALTER TABLE deleted_emails ADD COLUMN IF NOT EXISTS message_timestamp timestamptz`;
-}
 
 Deno.serve(withAudit("webhook-email", async (req) => {
   if (req.method === "OPTIONS") {
@@ -318,42 +303,11 @@ Deno.serve(withAudit("webhook-email", async (req) => {
 
       const externalIdCandidates = [...new Set([parsed.external_id, ...collectExternalIdCandidates(rawData)])];
 
-      // Skip ingestion if this message was previously deleted. We check both
-      // source IDs and exact content fingerprint because Gmail/n8n can replay
-      // the same email under a different wrapper/id shape.
-      await ensureDeletionSchema(sql);
-      const tomb = await sql`
-        SELECT 1 FROM deleted_emails
-        WHERE external_id = ANY(${externalIdCandidates}::text[])
-           OR (
-             lower(COALESCE(email, '')) = lower(${parsed.customer_email})
-             AND lower(trim(COALESCE(subject, ''))) = lower(trim(${parsed.subject}))
-             AND (
-               body_hash = md5(${parsed.body})
-               OR (
-                 message_timestamp IS NOT NULL
-                 AND ABS(EXTRACT(EPOCH FROM (message_timestamp - ${parsed.timestamp}::timestamptz))) <= 300
-               )
-             )
-           )
-        LIMIT 1
-      `;
-      if (tomb.length > 0) {
-        console.log("[webhook-email] Skipping tombstoned email:", parsed.external_id);
-        results.push({ skipped: true, external_id: parsed.external_id });
-        continue;
-      }
-
       // Skip duplicate/stale Gmail update events. Gmail/n8n re-pushes existing messages for
-      // label/read/archive changes, and those should not upsert the row or trigger AI again.
-      const existing = await sql`SELECT id, external_id, created_at, timestamp, deleted_at FROM emails WHERE external_id = ANY(${externalIdCandidates}::text[]) ORDER BY created_at ASC LIMIT 1`;
+      // label/read changes, and those should not upsert the row or trigger AI again.
+      const existing = await sql`SELECT id, external_id, created_at, timestamp FROM emails WHERE external_id = ANY(${externalIdCandidates}::text[]) ORDER BY created_at ASC LIMIT 1`;
       if (existing.length > 0) {
         const existingRow = existing[0];
-        if (existingRow.deleted_at) {
-          console.log("[webhook-email] Skipping soft-deleted email:", parsed.external_id);
-          results.push({ skipped: true, deleted: true, id: existingRow.id, external_id: existingRow.external_id });
-          continue;
-        }
         const sourceMs = gmailInternalDateMs ?? toEpochMs(parsed.timestamp);
         const existingSourceMs = toEpochMs(existingRow.timestamp) ?? toEpochMs(existingRow.created_at);
         if (sourceMs == null || existingSourceMs == null || sourceMs <= existingSourceMs) {

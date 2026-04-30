@@ -12,7 +12,7 @@ Deno.serve(withAudit("webhook-ai-enrichment", async (req) => {
     // Ensure relevance columns exist (idempotent guard for NeonDB)
     await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_relevant boolean NOT NULL DEFAULT true`;
     await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS relevance_reason text DEFAULT ''`;
-    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS deleted_at timestamptz`;
+    
 
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
     if (webhookSecret) {
