@@ -91,6 +91,8 @@ async function ensureTable(sql: any) {
 }
 
 export async function logAudit(entry: AuditEntry): Promise<void> {
+  // Paused: skip http_in/http_out logging to reduce DB egress. Only user_action/system/webhook/db are persisted.
+  if (entry.category === "http_in" || entry.category === "http_out") return;
   try {
     const sql = getDb();
     await ensureTable(sql);
