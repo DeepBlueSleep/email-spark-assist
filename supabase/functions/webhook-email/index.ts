@@ -276,26 +276,38 @@ Deno.serve(withAudit("webhook-email", async (req) => {
       };
       captureInternalDate(rawData);
 
+      // Collect attachments from EVERY wrapper level (and the innermost too).
+      // n8n/Gmail wrappers commonly carry attachments at multiple depths, often
+      // with empty arrays at some levels. We only want to overwrite our captured
+      // set when we find a non-empty array at a deeper level.
+      const collectAttachmentsAt = (obj: any, depth: number) => {
+        if (!obj || !Array.isArray(obj.attachments) || obj.attachments.length === 0) return;
+        const next: AttachmentData[] = [];
+        const nextNames: string[] = [];
+        for (const att of obj.attachments) {
+          if (!att || !att.filename) continue;
+          nextNames.push(att.filename);
+          next.push({
+            filename: att.filename,
+            content: att.content || att.data || att.content_base64 || "",
+            contentType: att.contentType || att.mimeType || att.mime_type || att.type || "application/octet-stream",
+            size: att.size || 0,
+          });
+        }
+        if (next.length > 0) {
+          inlineAttachments = nextNames;
+          inlineAttachmentData = next;
+          console.log("[webhook-email] Extracted", next.length, "attachments at depth", depth);
+        }
+      };
+
+      collectAttachmentsAt(rawData, 0);
+
       let unwrapDepth = 0;
       while (rawData.payload && typeof rawData.payload === "object" && unwrapDepth++ < 20) {
-        if (rawData.attachments && Array.isArray(rawData.attachments)) {
-          inlineAttachments = [];
-          inlineAttachmentData = [];
-          for (const att of rawData.attachments) {
-            if (att.filename) {
-              inlineAttachments.push(att.filename);
-              inlineAttachmentData.push({
-                filename: att.filename,
-                content: att.content || att.data || att.content_base64 || "",
-                contentType: att.contentType || att.mimeType || att.mime_type || "application/octet-stream",
-                size: att.size || 0,
-              });
-            }
-          }
-          console.log("[webhook-email] Extracted", inlineAttachments.length, "attachments at depth", unwrapDepth);
-        }
         rawData = rawData.payload;
         captureInternalDate(rawData);
+        collectAttachmentsAt(rawData, unwrapDepth);
       }
 
       const { parsed, raw } = parseEmail(rawData);
