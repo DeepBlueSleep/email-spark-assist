@@ -314,14 +314,13 @@ export function EmailList({
                     <span className={cn("w-2.5 h-2.5 rounded-full mt-1.5 shrink-0", sentimentDotClass[email.sentiment])} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className={cn("text-sm truncate", !email.is_read ? "font-semibold" : "font-medium text-foreground/70")}>
-                          {!email.is_read && <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mr-1.5 align-middle" />}
+                        <span className="text-sm truncate font-medium text-foreground">
                           {email.customer_name}
                         </span>
                         <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(email.timestamp)}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <p className={cn("text-sm truncate mt-0.5", !email.is_read ? "font-medium text-foreground" : "text-foreground/70")}>{email.subject}</p>
+                        <p className="text-sm truncate mt-0.5 text-foreground/80">{email.subject}</p>
                         {email.attachments && email.attachments.length > 0 && (
                           <Paperclip className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
                         )}
