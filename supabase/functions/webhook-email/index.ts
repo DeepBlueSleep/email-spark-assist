@@ -425,7 +425,7 @@ Deno.serve(withAudit("webhook-email", async (req) => {
           thread_external_id = COALESCE(emails.thread_external_id, EXCLUDED.thread_external_id),
           in_reply_to = COALESCE(NULLIF(EXCLUDED.in_reply_to, ''), emails.in_reply_to),
           updated_at = now()
-          -- NOTE: Do NOT overwrite status, is_read, or is_archived on conflict.
+          -- NOTE: Do NOT overwrite status or is_archived on conflict.
           -- These reflect user actions in the dashboard and must persist across re-ingestions.
         RETURNING id, external_id, thread_id
       `;
