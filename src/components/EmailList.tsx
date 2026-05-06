@@ -45,7 +45,7 @@ interface EmailListProps {
   statuses: StatusDef[];
   onToggleRelevant?: (email: Email, isRelevant: boolean) => void;
   onBulkSetRelevant?: (ids: string[], isRelevant: boolean) => void;
-  onBulkMarkRead?: (ids: string[], read: boolean) => void;
+  
   onBulkApprove?: (ids: string[]) => void;
   onBulkEscalate?: (ids: string[], reason: string) => void;
   showWorkflowBulk?: boolean;
