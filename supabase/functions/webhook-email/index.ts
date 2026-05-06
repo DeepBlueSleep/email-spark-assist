@@ -305,23 +305,23 @@ Deno.serve(withAudit("webhook-email", async (req) => {
       // with empty arrays at some levels. We only want to overwrite our captured
       // set when we find a non-empty array at a deeper level.
       const collectAttachmentsAt = (obj: any, depth: number) => {
-        if (!obj || !Array.isArray(obj.attachments) || obj.attachments.length === 0) return;
+        if (!obj) return;
+        const attachmentCandidates = Array.isArray(obj.attachments) ? obj.attachments : [];
+        if (obj.fileName || obj.filename || obj.file_name) attachmentCandidates.push(obj);
+        if (attachmentCandidates.length === 0) return;
         const next: AttachmentData[] = [];
         const nextNames: string[] = [];
-        for (const att of obj.attachments) {
-          if (!att || !att.filename) continue;
-          nextNames.push(att.filename);
-          next.push({
-            filename: att.filename,
-            content: att.content || att.data || att.content_base64 || "",
-            contentType: att.contentType || att.mimeType || att.mime_type || att.type || "application/octet-stream",
-            size: att.size || 0,
-          });
+        for (const att of attachmentCandidates) {
+          const filename = getAttachmentFilename(att);
+          if (!filename) continue;
+          nextNames.push(filename);
+          const data = toAttachmentData(att);
+          if (data) next.push(data);
         }
-        if (next.length > 0) {
+        if (nextNames.length > 0) {
           inlineAttachments = nextNames;
           inlineAttachmentData = next;
-          console.log("[webhook-email] Extracted", next.length, "attachments at depth", depth);
+          console.log("[webhook-email] Extracted", next.length, "attachments with base64 at depth", depth, "from", nextNames.length, "filename(s)");
         }
       };
 
