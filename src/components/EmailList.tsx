@@ -56,7 +56,7 @@ interface EmailListProps {
 
 export function EmailList({
   emails, selectedId, onSelect, statuses,
-  onToggleRelevant, onBulkSetRelevant, onBulkMarkRead, onBulkApprove, onBulkEscalate,
+  onToggleRelevant, onBulkSetRelevant, onBulkApprove, onBulkEscalate,
   showWorkflowBulk = false, currentTab = "relevant",
   title = "Messages", onCollapse,
 }: EmailListProps) {
