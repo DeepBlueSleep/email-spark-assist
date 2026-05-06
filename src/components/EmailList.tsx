@@ -195,15 +195,6 @@ export function EmailList({
                     <Send className="w-3 h-3" /> Approve
                   </button>
                 )}
-                {onBulkMarkRead && !isIrrelevantTab && (
-                  <button
-                    onClick={() => { onBulkMarkRead(selectedArr.map((e) => e.id), true); clearSelection(); }}
-                    className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                    title="Mark as read"
-                  >
-                    <MailOpen className="w-3.5 h-3.5" />
-                  </button>
-                )}
                 {onBulkSetRelevant && (
                   <button
                     onClick={() => { onBulkSetRelevant(selectedArr.map((e) => e.id), isIrrelevantTab); clearSelection(); }}
