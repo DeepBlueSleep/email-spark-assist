@@ -21,6 +21,34 @@ interface ParsedEmail {
   in_reply_to?: string;
 }
 
+function getAttachmentFilename(att: any): string {
+  return String(att?.filename || att?.fileName || att?.file_name || att?.name || "").trim();
+}
+
+function getAttachmentContent(att: any): string {
+  const raw = att?.content ?? att?.data ?? att?.content_base64 ?? att?.base64 ?? att?.body?.data ?? "";
+  if (typeof raw !== "string") return "";
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  return trimmed.includes(";base64,") ? trimmed.split(";base64,").pop() || "" : trimmed;
+}
+
+function toAttachmentData(att: any): AttachmentData | null {
+  const filename = getAttachmentFilename(att);
+  if (!filename) return null;
+  const content = getAttachmentContent(att);
+  if (!content) {
+    console.warn("[webhook-email] Attachment metadata received without base64 content:", filename);
+    return null;
+  }
+  return {
+    filename,
+    content,
+    contentType: att.contentType || att.mimeType || att.mime_type || att.type || (filename.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream"),
+    size: att.size || att.sizeBytes || att.size_bytes || 0,
+  };
+}
+
 function parseN8nParsedFormat(raw: any): ParsedEmail | null {
   if (!raw.from?.value && !raw.messageId) return null;
   const fromEntry = raw.from?.value?.[0];
@@ -37,15 +65,11 @@ function parseN8nParsedFormat(raw: any): ParsedEmail | null {
   const attachmentData: AttachmentData[] = [];
   if (raw.attachments && Array.isArray(raw.attachments)) {
     for (const att of raw.attachments) {
-      if (att.filename) {
-        attachments.push(att.filename);
-        attachmentData.push({
-          filename: att.filename,
-          content: att.content || att.data || att.content_base64 || "",
-          contentType: att.contentType || att.mimeType || att.mime_type || "application/octet-stream",
-          size: att.size || 0,
-        });
-      }
+      const filename = getAttachmentFilename(att);
+      if (!filename) continue;
+      attachments.push(filename);
+      const data = toAttachmentData(att);
+      if (data) attachmentData.push(data);
     }
   }
   const inReplyTo = raw.inReplyTo || raw.in_reply_to || raw.headers?.["in-reply-to"] || "";
@@ -118,7 +142,7 @@ function parseGmailRawFormat(raw: any): ParsedEmail | null {
 function parseFlatFormat(raw: any): ParsedEmail {
   let customer_name = raw.customer_name || null;
   let customer_email = raw.email || null;
-  let body = raw.body || raw.textPlain || raw.snippet || "";
+  let body = typeof raw.body === "string" ? raw.body : raw.textPlain || raw.snippet || "";
   if (body.startsWith("<") || body.includes("<div") || body.includes("<p")) {
     body = body
       .replace(/<[^>]*>/g, " ")
@@ -281,23 +305,23 @@ Deno.serve(withAudit("webhook-email", async (req) => {
       // with empty arrays at some levels. We only want to overwrite our captured
       // set when we find a non-empty array at a deeper level.
       const collectAttachmentsAt = (obj: any, depth: number) => {
-        if (!obj || !Array.isArray(obj.attachments) || obj.attachments.length === 0) return;
+        if (!obj) return;
+        const attachmentCandidates = Array.isArray(obj.attachments) ? obj.attachments : [];
+        if (obj.fileName || obj.filename || obj.file_name) attachmentCandidates.push(obj);
+        if (attachmentCandidates.length === 0) return;
         const next: AttachmentData[] = [];
         const nextNames: string[] = [];
-        for (const att of obj.attachments) {
-          if (!att || !att.filename) continue;
-          nextNames.push(att.filename);
-          next.push({
-            filename: att.filename,
-            content: att.content || att.data || att.content_base64 || "",
-            contentType: att.contentType || att.mimeType || att.mime_type || att.type || "application/octet-stream",
-            size: att.size || 0,
-          });
+        for (const att of attachmentCandidates) {
+          const filename = getAttachmentFilename(att);
+          if (!filename) continue;
+          nextNames.push(filename);
+          const data = toAttachmentData(att);
+          if (data) next.push(data);
         }
-        if (next.length > 0) {
+        if (nextNames.length > 0) {
           inlineAttachments = nextNames;
           inlineAttachmentData = next;
-          console.log("[webhook-email] Extracted", next.length, "attachments at depth", depth);
+          console.log("[webhook-email] Extracted", next.length, "attachments with base64 at depth", depth, "from", nextNames.length, "filename(s)");
         }
       };
 
@@ -305,6 +329,8 @@ Deno.serve(withAudit("webhook-email", async (req) => {
 
       let unwrapDepth = 0;
       while (rawData.payload && typeof rawData.payload === "object" && unwrapDepth++ < 20) {
+        const payloadLooksLikeGmailMime = rawData.id && (rawData.threadId || rawData.labelIds) && (rawData.payload.headers || rawData.payload.parts || rawData.payload.body);
+        if (payloadLooksLikeGmailMime) break;
         rawData = rawData.payload;
         captureInternalDate(rawData);
         collectAttachmentsAt(rawData, unwrapDepth);
@@ -446,6 +472,9 @@ Deno.serve(withAudit("webhook-email", async (req) => {
           `;
         }
         console.log("[webhook-email] Stored", parsed.attachmentData.length, "attachment(s) for email", email.id);
+      } else if (parsed.attachments.length > 0) {
+        await sql`DELETE FROM email_attachments WHERE email_id = ${email.id}`;
+        console.warn("[webhook-email] Attachment filename(s) present but no base64 content stored:", parsed.attachments.join(", "));
       }
 
       // Insert order items
