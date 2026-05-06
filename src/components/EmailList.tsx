@@ -3,7 +3,7 @@ import { Email, Sentiment, Intent, Status } from "@/data/mockData";
 import { StatusDef } from "@/hooks/useStatuses";
 import {
   Search, Filter, MessageSquare, ChevronDown, Paperclip,
-  ChevronLeft, MailOpen, X, Send, XCircle, AlertTriangle,
+  ChevronLeft, X, Send, XCircle, AlertTriangle,
   Filter as FilterIcon, RotateCcw,
 } from "lucide-react";
 import { cn, formatLabel } from "@/lib/utils";
