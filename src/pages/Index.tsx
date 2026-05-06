@@ -15,7 +15,7 @@ import type { Email } from "@/data/mockData";
 type InboxTab = "relevant" | "irrelevant";
 
 const Index = () => {
-  const { emails, isLoading, usingLiveData, updateStatus, markRead, setRelevant, bulkSetRelevant, bulkMarkRead, bulkSetStatus } = useEmails();
+  const { emails, isLoading, usingLiveData, updateStatus, setRelevant, bulkSetRelevant, bulkSetStatus } = useEmails();
   const statuses = useStatuses();
   const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
