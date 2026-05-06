@@ -28,9 +28,15 @@ function getAttachmentFilename(att: any): string {
 function getAttachmentContent(att: any): string {
   const raw = att?.content ?? att?.data ?? att?.content_base64 ?? att?.base64 ?? att?.body?.data ?? "";
   if (typeof raw !== "string") return "";
-  const trimmed = raw.trim();
+  let trimmed = raw.trim();
   if (!trimmed) return "";
-  return trimmed.includes(";base64,") ? trimmed.split(";base64,").pop() || "" : trimmed;
+  if (/^(filesystem-v\d+|binary|buffer|attachment|file)$/i.test(trimmed)) return "";
+  trimmed = trimmed.includes(";base64,") ? trimmed.split(";base64,").pop() || "" : trimmed;
+  trimmed = trimmed.replace(/\s+/g, "");
+  const filename = getAttachmentFilename(att).toLowerCase();
+  if (filename.endsWith(".pdf") && !trimmed.startsWith("JVBERi0")) return "";
+  if (!/^[A-Za-z0-9+/=_-]+$/.test(trimmed) || trimmed.length < 24) return "";
+  return trimmed.replace(/-/g, "+").replace(/_/g, "/");
 }
 
 function toAttachmentData(att: any): AttachmentData | null {
@@ -320,7 +326,9 @@ Deno.serve(withAudit("webhook-email", async (req) => {
         }
         if (nextNames.length > 0) {
           inlineAttachments = nextNames;
-          inlineAttachmentData = next;
+          if (next.length > 0 || inlineAttachmentData.length === 0) {
+            inlineAttachmentData = next;
+          }
           console.log("[webhook-email] Extracted", next.length, "attachments with base64 at depth", depth, "from", nextNames.length, "filename(s)");
         }
       };
@@ -341,6 +349,8 @@ Deno.serve(withAudit("webhook-email", async (req) => {
       // Merge attachments from wrapper if parsed didn't find any
       if (inlineAttachments.length > 0 && !parsed.attachments.length) {
         parsed.attachments = inlineAttachments;
+      }
+      if (inlineAttachmentData.length > 0 && parsed.attachmentData.length === 0) {
         parsed.attachmentData = inlineAttachmentData;
       }
 
