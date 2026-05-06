@@ -128,7 +128,6 @@ export function useEmails() {
           customer: e.customer_id ? customersMap[e.customer_id] : undefined,
           is_relevant: e.is_relevant !== false,
           relevance_reason: e.relevance_reason || "",
-          is_read: e.is_read === true,
           is_archived: false,
         };
       });
