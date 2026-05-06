@@ -142,7 +142,7 @@ function parseGmailRawFormat(raw: any): ParsedEmail | null {
 function parseFlatFormat(raw: any): ParsedEmail {
   let customer_name = raw.customer_name || null;
   let customer_email = raw.email || null;
-  let body = raw.body || raw.textPlain || raw.snippet || "";
+  let body = typeof raw.body === "string" ? raw.body : raw.textPlain || raw.snippet || "";
   if (body.startsWith("<") || body.includes("<div") || body.includes("<p")) {
     body = body
       .replace(/<[^>]*>/g, " ")
@@ -329,6 +329,8 @@ Deno.serve(withAudit("webhook-email", async (req) => {
 
       let unwrapDepth = 0;
       while (rawData.payload && typeof rawData.payload === "object" && unwrapDepth++ < 20) {
+        const payloadLooksLikeGmailMime = rawData.id && (rawData.threadId || rawData.labelIds) && (rawData.payload.headers || rawData.payload.parts || rawData.payload.body);
+        if (payloadLooksLikeGmailMime) break;
         rawData = rawData.payload;
         captureInternalDate(rawData);
         collectAttachmentsAt(rawData, unwrapDepth);
