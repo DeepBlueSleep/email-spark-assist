@@ -59,14 +59,13 @@ const Dashboard = () => {
   // Pipeline counts
   const pipeline = useMemo(() => {
     const counts: Record<string, number> = {};
-    let unread = 0, irrelevant = 0;
+    let irrelevant = 0;
     for (const e of filtered) {
       if (e.is_relevant === false) { irrelevant++; continue; }
       const s = e.status || "New";
       counts[s] = (counts[s] || 0) + 1;
-      if (!e.is_read) unread++;
     }
-    return { counts, unread, archived: 0, irrelevant, total: filtered.length };
+    return { counts, archived: 0, irrelevant, total: filtered.length };
   }, [filtered]);
 
   const pipelineChart = useMemo(
