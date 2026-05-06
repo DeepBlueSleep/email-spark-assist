@@ -470,6 +470,9 @@ Deno.serve(withAudit("webhook-email", async (req) => {
           `;
         }
         console.log("[webhook-email] Stored", parsed.attachmentData.length, "attachment(s) for email", email.id);
+      } else if (parsed.attachments.length > 0) {
+        await sql`DELETE FROM email_attachments WHERE email_id = ${email.id}`;
+        console.warn("[webhook-email] Attachment filename(s) present but no base64 content stored:", parsed.attachments.join(", "));
       }
 
       // Insert order items
