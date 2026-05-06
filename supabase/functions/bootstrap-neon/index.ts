@@ -56,6 +56,15 @@ Deno.serve(async (req) => {
       updated_at timestamptz NOT NULL DEFAULT now()
     )`;
 
+    await sql`CREATE TABLE IF NOT EXISTS message_threads (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      thread_external_id text UNIQUE,
+      channel text NOT NULL DEFAULT 'email',
+      subject text DEFAULT '',
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )`;
+
     await sql`CREATE TABLE IF NOT EXISTS emails (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       external_id text,
@@ -73,10 +82,45 @@ Deno.serve(async (req) => {
       relevance_reason text DEFAULT '',
       is_read boolean NOT NULL DEFAULT false,
       is_archived boolean NOT NULL DEFAULT false,
+      thread_id uuid,
+      thread_external_id text,
+      in_reply_to text,
+      message_position integer DEFAULT 1,
       timestamp timestamptz NOT NULL DEFAULT now(),
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )`;
+
+    await sql`CREATE TABLE IF NOT EXISTS webhook_logs (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      endpoint text NOT NULL,
+      payload jsonb NOT NULL,
+      status text DEFAULT 'received',
+      error_message text,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )`;
+
+    await sql`CREATE TABLE IF NOT EXISTS audit_logs (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      created_at timestamptz NOT NULL DEFAULT now(),
+      category text NOT NULL,
+      action text NOT NULL,
+      actor text,
+      target_type text,
+      target_id text,
+      status text,
+      source text,
+      ip text,
+      user_agent text,
+      request jsonb,
+      response jsonb,
+      metadata jsonb,
+      error text,
+      duration_ms integer
+    )`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs (created_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_category ON audit_logs (category)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs (target_type, target_id)`;
 
     await sql`CREATE TABLE IF NOT EXISTS order_items (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
