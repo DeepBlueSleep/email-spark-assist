@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.migrate-neon]
 verify_jwt = false
+
+[functions.bootstrap-neon]
+verify_jwt = false
