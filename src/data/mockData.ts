@@ -79,7 +79,6 @@ export interface Email {
   customer?: Customer;
   is_relevant?: boolean;
   relevance_reason?: string;
-  is_read?: boolean;
   is_archived?: boolean;
 }
 

@@ -59,14 +59,13 @@ const Dashboard = () => {
   // Pipeline counts
   const pipeline = useMemo(() => {
     const counts: Record<string, number> = {};
-    let unread = 0, irrelevant = 0;
+    let irrelevant = 0;
     for (const e of filtered) {
       if (e.is_relevant === false) { irrelevant++; continue; }
       const s = e.status || "New";
       counts[s] = (counts[s] || 0) + 1;
-      if (!e.is_read) unread++;
     }
-    return { counts, unread, archived: 0, irrelevant, total: filtered.length };
+    return { counts, archived: 0, irrelevant, total: filtered.length };
   }, [filtered]);
 
   const pipelineChart = useMemo(
@@ -190,9 +189,9 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             icon={Mail}
-            label="Unread emails"
-            value={pipeline.unread}
-            href="/inbox?tab=inbox&unread=1"
+            label="Total messages"
+            value={pipeline.total}
+            href="/inbox"
             tone="primary"
           />
           <KpiCard
@@ -450,7 +449,6 @@ function EmailRow({ email }: { email: DashEmailRaw }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium truncate">{email.customer_name || email.email}</p>
-            {!email.is_read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
           </div>
           <p className="text-xs text-muted-foreground truncate">{email.subject}</p>
         </div>

@@ -15,7 +15,7 @@ import type { Email } from "@/data/mockData";
 type InboxTab = "relevant" | "irrelevant";
 
 const Index = () => {
-  const { emails, isLoading, usingLiveData, updateStatus, markRead, setRelevant, bulkSetRelevant, bulkMarkRead, bulkSetStatus } = useEmails();
+  const { emails, isLoading, usingLiveData, updateStatus, setRelevant, bulkSetRelevant, bulkSetStatus } = useEmails();
   const statuses = useStatuses();
   const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -34,28 +34,25 @@ const Index = () => {
       const target = emails.find((e) => e.id === id);
       if (target) {
         setTab(target.is_relevant === false ? "irrelevant" : "relevant");
-        if (!target.is_read && target.is_relevant !== false) markRead(target.id, true);
       }
     }
-  }, [searchParams, emails, markRead]);
+  }, [searchParams, emails]);
 
-  const { relevant, irrelevant, unreadCount } = useMemo(() => {
+  const { relevant, irrelevant } = useMemo(() => {
     const relevant: Email[] = [];
     const irrelevant: Email[] = [];
-    let unreadCount = 0;
     for (const e of emails) {
       if (e.is_relevant === false) {
         irrelevant.push(e);
       } else {
         relevant.push(e);
-        if (!e.is_read) unreadCount++;
       }
     }
-    return { relevant, irrelevant, unreadCount };
+    return { relevant, irrelevant };
   }, [emails]);
 
   const tabConfig: Record<InboxTab, { label: string; icon: typeof Inbox; emails: Email[]; emptyText: string; badge: number }> = {
-    relevant:   { label: "Relevant",   icon: MessageSquare, emails: relevant,   emptyText: "No messages", badge: unreadCount },
+    relevant:   { label: "Relevant",   icon: MessageSquare, emails: relevant,   emptyText: "No messages", badge: 0 },
     irrelevant: { label: "Irrelevant", icon: FilterIcon,    emails: irrelevant, emptyText: "No irrelevant messages", badge: 0 },
   };
 
@@ -66,9 +63,6 @@ const Index = () => {
 
   const handleSelect = (email: Email) => {
     setSelectedId(email.id);
-    if (!email.is_read && email.is_relevant !== false) {
-      markRead(email.id, true);
-    }
   };
 
   const handleToggleRelevant = (email: Email, isRelevant: boolean) => {
@@ -155,7 +149,7 @@ const Index = () => {
               statuses={statuses}
               onToggleRelevant={handleToggleRelevant}
               onBulkSetRelevant={bulkSetRelevant}
-              onBulkMarkRead={tab === "relevant" ? bulkMarkRead : undefined}
+              
               onBulkApprove={tab === "relevant" ? (ids) => bulkSetStatus(ids, "Replied") : undefined}
               
               showWorkflowBulk={tab === "relevant"}

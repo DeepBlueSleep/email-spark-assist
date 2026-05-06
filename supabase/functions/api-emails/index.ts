@@ -68,20 +68,17 @@ Deno.serve(withAudit("api-emails", async (req) => {
         });
       }
 
-      // Ensure read column exists in NeonDB (idempotent guard)
-      await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_read boolean NOT NULL DEFAULT false`;
+      // Ensure relevance column exists in NeonDB (idempotent guard)
       await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_relevant boolean NOT NULL DEFAULT true`;
 
       const status = fields.status ?? null;
       const aiReplyDraft = fields.ai_reply_draft ?? null;
-      const isRead = typeof fields.is_read === "boolean" ? fields.is_read : null;
       const isRelevant = typeof fields.is_relevant === "boolean" ? fields.is_relevant : null;
 
       await sql`
         UPDATE emails SET
           status = COALESCE(${status}, status),
           ai_reply_draft = COALESCE(${aiReplyDraft}, ai_reply_draft),
-          is_read = COALESCE(${isRead}, is_read),
           is_relevant = COALESCE(${isRelevant}, is_relevant),
           updated_at = now()
         WHERE id = ANY(${ids}::uuid[])

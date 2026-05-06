@@ -128,7 +128,6 @@ export function useEmails() {
           customer: e.customer_id ? customersMap[e.customer_id] : undefined,
           is_relevant: e.is_relevant !== false,
           relevance_reason: e.relevance_reason || "",
-          is_read: e.is_read === true,
           is_archived: false,
         };
       });
@@ -158,19 +157,6 @@ export function useEmails() {
         invokeFunction("api-emails", { method: "PATCH", body: { id, status } })
           .then(() => clearPendingPatch(id, ["status"]))
           .catch((err) => { clearPendingPatch(id, ["status"]); console.error(err); });
-      }
-    },
-    [addPendingPatch, clearPendingPatch, usingLiveData]
-  );
-
-  const markRead = useCallback(
-    (id: string, is_read = true) => {
-      addPendingPatch(id, { is_read });
-      setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_read } : e)));
-      if (usingLiveData) {
-        invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } })
-          .then(() => clearPendingPatch(id, ["is_read"]))
-          .catch((err) => { clearPendingPatch(id, ["is_read"]); console.error(err); });
       }
     },
     [addPendingPatch, clearPendingPatch, usingLiveData]
@@ -209,26 +195,6 @@ export function useEmails() {
     [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
-  const bulkMarkRead = useCallback(
-    async (ids: string[], is_read: boolean) => {
-      if (ids.length === 0) return;
-      const set = new Set(ids);
-      ids.forEach((id) => addPendingPatch(id, { is_read }));
-      setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read } : e)));
-      if (usingLiveData) {
-        try {
-          await invokeFunction("api-emails", { method: "PATCH", body: { ids, is_read } });
-          ids.forEach((id) => clearPendingPatch(id, ["is_read"]));
-        } catch (err) {
-          console.error("Failed to bulk mark read:", err);
-          ids.forEach((id) => clearPendingPatch(id, ["is_read"]));
-          setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read: !is_read } : e)));
-        }
-      }
-    },
-    [addPendingPatch, clearPendingPatch, usingLiveData]
-  );
-
   const bulkSetStatus = useCallback(
     async (ids: string[], status: Status) => {
       if (ids.length === 0) return;
@@ -248,5 +214,5 @@ export function useEmails() {
     [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
-  return { emails, isLoading, usingLiveData, updateStatus, markRead, setRelevant, bulkSetRelevant, bulkMarkRead, bulkSetStatus };
+  return { emails, isLoading, usingLiveData, updateStatus, setRelevant, bulkSetRelevant, bulkSetStatus };
 }

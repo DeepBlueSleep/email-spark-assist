@@ -3,7 +3,7 @@ import { Email, Sentiment, Intent, Status } from "@/data/mockData";
 import { StatusDef } from "@/hooks/useStatuses";
 import {
   Search, Filter, MessageSquare, ChevronDown, Paperclip,
-  ChevronLeft, MailOpen, X, Send, XCircle, AlertTriangle,
+  ChevronLeft, X, Send, XCircle, AlertTriangle,
   Filter as FilterIcon, RotateCcw,
 } from "lucide-react";
 import { cn, formatLabel } from "@/lib/utils";
@@ -45,7 +45,7 @@ interface EmailListProps {
   statuses: StatusDef[];
   onToggleRelevant?: (email: Email, isRelevant: boolean) => void;
   onBulkSetRelevant?: (ids: string[], isRelevant: boolean) => void;
-  onBulkMarkRead?: (ids: string[], read: boolean) => void;
+  
   onBulkApprove?: (ids: string[]) => void;
   onBulkEscalate?: (ids: string[], reason: string) => void;
   showWorkflowBulk?: boolean;
@@ -56,7 +56,7 @@ interface EmailListProps {
 
 export function EmailList({
   emails, selectedId, onSelect, statuses,
-  onToggleRelevant, onBulkSetRelevant, onBulkMarkRead, onBulkApprove, onBulkEscalate,
+  onToggleRelevant, onBulkSetRelevant, onBulkApprove, onBulkEscalate,
   showWorkflowBulk = false, currentTab = "relevant",
   title = "Messages", onCollapse,
 }: EmailListProps) {
@@ -195,15 +195,6 @@ export function EmailList({
                     <Send className="w-3 h-3" /> Approve
                   </button>
                 )}
-                {onBulkMarkRead && !isIrrelevantTab && (
-                  <button
-                    onClick={() => { onBulkMarkRead(selectedArr.map((e) => e.id), true); clearSelection(); }}
-                    className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                    title="Mark as read"
-                  >
-                    <MailOpen className="w-3.5 h-3.5" />
-                  </button>
-                )}
                 {onBulkSetRelevant && (
                   <button
                     onClick={() => { onBulkSetRelevant(selectedArr.map((e) => e.id), isIrrelevantTab); clearSelection(); }}
@@ -314,14 +305,13 @@ export function EmailList({
                     <span className={cn("w-2.5 h-2.5 rounded-full mt-1.5 shrink-0", sentimentDotClass[email.sentiment])} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className={cn("text-sm truncate", !email.is_read ? "font-semibold" : "font-medium text-foreground/70")}>
-                          {!email.is_read && <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mr-1.5 align-middle" />}
+                        <span className="text-sm truncate font-medium text-foreground">
                           {email.customer_name}
                         </span>
                         <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(email.timestamp)}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <p className={cn("text-sm truncate mt-0.5", !email.is_read ? "font-medium text-foreground" : "text-foreground/70")}>{email.subject}</p>
+                        <p className="text-sm truncate mt-0.5 text-foreground/80">{email.subject}</p>
                         {email.attachments && email.attachments.length > 0 && (
                           <Paperclip className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
                         )}
