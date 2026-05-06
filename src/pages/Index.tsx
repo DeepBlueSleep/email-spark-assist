@@ -149,7 +149,7 @@ const Index = () => {
               statuses={statuses}
               onToggleRelevant={handleToggleRelevant}
               onBulkSetRelevant={bulkSetRelevant}
-              onBulkMarkRead={tab === "relevant" ? bulkMarkRead : undefined}
+              
               onBulkApprove={tab === "relevant" ? (ids) => bulkSetStatus(ids, "Replied") : undefined}
               
               showWorkflowBulk={tab === "relevant"}
