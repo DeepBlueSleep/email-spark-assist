@@ -189,9 +189,9 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             icon={Mail}
-            label="Unread emails"
-            value={pipeline.unread}
-            href="/inbox?tab=inbox&unread=1"
+            label="Total messages"
+            value={pipeline.total}
+            href="/inbox"
             tone="primary"
           />
           <KpiCard
