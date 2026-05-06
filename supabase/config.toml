@@ -14,9 +14,3 @@ verify_jwt = false
 
 [functions.api-customers]
 verify_jwt = false
-
-[functions.migrate-neon]
-verify_jwt = false
-
-[functions.bootstrap-neon]
-verify_jwt = false
