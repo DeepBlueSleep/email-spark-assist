@@ -21,6 +21,34 @@ interface ParsedEmail {
   in_reply_to?: string;
 }
 
+function getAttachmentFilename(att: any): string {
+  return String(att?.filename || att?.fileName || att?.file_name || att?.name || "").trim();
+}
+
+function getAttachmentContent(att: any): string {
+  const raw = att?.content ?? att?.data ?? att?.content_base64 ?? att?.base64 ?? att?.body?.data ?? "";
+  if (typeof raw !== "string") return "";
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  return trimmed.includes(";base64,") ? trimmed.split(";base64,").pop() || "" : trimmed;
+}
+
+function toAttachmentData(att: any): AttachmentData | null {
+  const filename = getAttachmentFilename(att);
+  if (!filename) return null;
+  const content = getAttachmentContent(att);
+  if (!content) {
+    console.warn("[webhook-email] Attachment metadata received without base64 content:", filename);
+    return null;
+  }
+  return {
+    filename,
+    content,
+    contentType: att.contentType || att.mimeType || att.mime_type || att.type || (filename.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream"),
+    size: att.size || att.sizeBytes || att.size_bytes || 0,
+  };
+}
+
 function parseN8nParsedFormat(raw: any): ParsedEmail | null {
   if (!raw.from?.value && !raw.messageId) return null;
   const fromEntry = raw.from?.value?.[0];
@@ -37,15 +65,11 @@ function parseN8nParsedFormat(raw: any): ParsedEmail | null {
   const attachmentData: AttachmentData[] = [];
   if (raw.attachments && Array.isArray(raw.attachments)) {
     for (const att of raw.attachments) {
-      if (att.filename) {
-        attachments.push(att.filename);
-        attachmentData.push({
-          filename: att.filename,
-          content: att.content || att.data || att.content_base64 || "",
-          contentType: att.contentType || att.mimeType || att.mime_type || "application/octet-stream",
-          size: att.size || 0,
-        });
-      }
+      const filename = getAttachmentFilename(att);
+      if (!filename) continue;
+      attachments.push(filename);
+      const data = toAttachmentData(att);
+      if (data) attachmentData.push(data);
     }
   }
   const inReplyTo = raw.inReplyTo || raw.in_reply_to || raw.headers?.["in-reply-to"] || "";
