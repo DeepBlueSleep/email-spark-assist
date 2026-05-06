@@ -162,19 +162,6 @@ export function useEmails() {
     [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
-  const markRead = useCallback(
-    (id: string, is_read = true) => {
-      addPendingPatch(id, { is_read });
-      setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, is_read } : e)));
-      if (usingLiveData) {
-        invokeFunction("api-emails", { method: "PATCH", body: { id, is_read } })
-          .then(() => clearPendingPatch(id, ["is_read"]))
-          .catch((err) => { clearPendingPatch(id, ["is_read"]); console.error(err); });
-      }
-    },
-    [addPendingPatch, clearPendingPatch, usingLiveData]
-  );
-
   const setRelevant = useCallback(
     (id: string, is_relevant: boolean) => {
       addPendingPatch(id, { is_relevant });
@@ -202,26 +189,6 @@ export function useEmails() {
           console.error("Failed to bulk update relevance:", err);
           ids.forEach((id) => clearPendingPatch(id, ["is_relevant"]));
           setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_relevant: !is_relevant } : e)));
-        }
-      }
-    },
-    [addPendingPatch, clearPendingPatch, usingLiveData]
-  );
-
-  const bulkMarkRead = useCallback(
-    async (ids: string[], is_read: boolean) => {
-      if (ids.length === 0) return;
-      const set = new Set(ids);
-      ids.forEach((id) => addPendingPatch(id, { is_read }));
-      setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read } : e)));
-      if (usingLiveData) {
-        try {
-          await invokeFunction("api-emails", { method: "PATCH", body: { ids, is_read } });
-          ids.forEach((id) => clearPendingPatch(id, ["is_read"]));
-        } catch (err) {
-          console.error("Failed to bulk mark read:", err);
-          ids.forEach((id) => clearPendingPatch(id, ["is_read"]));
-          setEmails((prev) => prev.map((e) => (set.has(e.id) ? { ...e, is_read: !is_read } : e)));
         }
       }
     },
