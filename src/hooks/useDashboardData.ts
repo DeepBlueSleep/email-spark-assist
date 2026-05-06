@@ -20,7 +20,7 @@ export interface DashEmailRaw {
   status: string | null;
   intent: string | null;
   intent_confidence: number | null;
-  is_read: boolean;
+  
   is_archived: boolean;
   is_relevant: boolean;
   customer_id: string | null;
