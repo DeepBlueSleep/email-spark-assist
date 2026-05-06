@@ -449,7 +449,6 @@ function EmailRow({ email }: { email: DashEmailRaw }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium truncate">{email.customer_name || email.email}</p>
-            {!email.is_read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
           </div>
           <p className="text-xs text-muted-foreground truncate">{email.subject}</p>
         </div>
