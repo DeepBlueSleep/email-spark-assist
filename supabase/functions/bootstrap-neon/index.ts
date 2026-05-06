@@ -149,6 +149,14 @@ Deno.serve(async (req) => {
       created_at timestamptz NOT NULL DEFAULT now()
     )`;
 
+    // Unique indexes required by ON CONFLICT clauses
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS customers_email_key ON customers (email)`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS statuses_key_key ON statuses (key)`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS intents_key_key ON intents (key)`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS emails_external_id_key ON emails (external_id)`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS message_threads_thread_external_id_key ON message_threads (thread_external_id)`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS products_sku_code_key ON products (sku_code)`;
+
     // Verify read/write
     const testCust = await sql`INSERT INTO customers (name, email) VALUES ('__bootstrap_test__', 'bootstrap@test.local') RETURNING id`;
     const id = (testCust as any)[0].id;
