@@ -214,5 +214,5 @@ export function useEmails() {
     [addPendingPatch, clearPendingPatch, usingLiveData]
   );
 
-  return { emails, isLoading, usingLiveData, updateStatus, markRead, setRelevant, bulkSetRelevant, bulkMarkRead, bulkSetStatus };
+  return { emails, isLoading, usingLiveData, updateStatus, setRelevant, bulkSetRelevant, bulkSetStatus };
 }
