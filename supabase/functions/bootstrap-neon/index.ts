@@ -149,6 +149,18 @@ Deno.serve(async (req) => {
       created_at timestamptz NOT NULL DEFAULT now()
     )`;
 
+    // Ensure thread-related columns exist on pre-existing emails tables
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS thread_id uuid`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS thread_external_id text`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS in_reply_to text`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS message_position integer DEFAULT 1`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS customer_id uuid`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS recommended_sku_codes jsonb DEFAULT '[]'::jsonb`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_relevant boolean NOT NULL DEFAULT true`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS relevance_reason text DEFAULT ''`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_read boolean NOT NULL DEFAULT false`;
+    await sql`ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false`;
+
     // Unique indexes required by ON CONFLICT clauses
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS customers_email_key ON customers (email)`;
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS statuses_key_key ON statuses (key)`;
