@@ -248,8 +248,8 @@ export function EmailDetail({ email, onStatusChange }: EmailDetailProps) {
           <AIReplyEditor emailId={email.id} draft={replyDraft} onChange={setReplyDraft} />
         )}
 
-        {/* Actions — only when there's enrichment data to act on */}
-        {hasAnyEnrichment && (
+        {/* Actions — hidden for enquiry intents (no actionable order workflow) */}
+        {hasAnyEnrichment && !/enquir(y|ies)|general question/i.test(email.intent || "") && (
           <ActionButtons email={email} replyDraft={replyDraft} selectedTone={selectedTone} onStatusChange={onStatusChange} orderTotal={orderTotal} draftOrderItems={draftOrderItems} />
         )}
       </div>
