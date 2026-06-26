@@ -172,6 +172,7 @@ export function AttachmentsPanel({ attachments, attachmentsMeta, onClose }: Atta
 
   const handleSelect = useCallback(async (idx: number) => {
     setSelectedIndex(idx);
+    setZoom(1);
     const meta = getMetaForIndex(idx);
     if (!meta) return; // No stored data, will show placeholder
 
