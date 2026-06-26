@@ -271,7 +271,7 @@ export function DraftOrder({ recommendedSkus, extractedOrderItems = [], onTotalC
                   key={item.id}
                   className={cn(
                     "border-b border-border/50 hover:bg-accent/30",
-                    item.out_of_stock && "opacity-50 bg-muted/30 hover:bg-muted/40"
+                    item.out_of_stock && "bg-destructive/10 hover:bg-destructive/15"
                   )}
                 >
                   <td className="py-2 px-2">
