@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { Email } from "@/data/mockData";
 
-type InboxTab = "relevant" | "irrelevant";
+type InboxTab = "relevant" | "irrelevant" | "wa_93554832" | "wa_93537640";
 
 const Index = () => {
   const { emails, isLoading, usingLiveData, updateStatus, setRelevant, bulkSetRelevant, bulkSetStatus } = useEmails();
