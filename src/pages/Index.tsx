@@ -52,8 +52,10 @@ const Index = () => {
   }, [emails]);
 
   const tabConfig: Record<InboxTab, { label: string; icon: typeof Inbox; emails: Email[]; emptyText: string; badge: number }> = {
-    relevant:   { label: "Relevant",   icon: MessageSquare, emails: relevant,   emptyText: "No messages", badge: 0 },
-    irrelevant: { label: "Irrelevant", icon: FilterIcon,    emails: irrelevant, emptyText: "No irrelevant messages", badge: 0 },
+    relevant:    { label: "Relevant",     icon: MessageSquare, emails: relevant,   emptyText: "No messages", badge: 0 },
+    irrelevant:  { label: "Irrelevant",   icon: FilterIcon,    emails: irrelevant, emptyText: "No irrelevant messages", badge: 0 },
+    wa_93554832: { label: "WA 93554832",  icon: MessageCircle, emails: [],         emptyText: "No WhatsApp messages", badge: 0 },
+    wa_93537640: { label: "WA 93537640",  icon: MessageCircle, emails: [],         emptyText: "No WhatsApp messages", badge: 0 },
   };
 
   const visibleEmails = tabConfig[tab].emails;
