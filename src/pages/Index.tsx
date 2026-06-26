@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { Email } from "@/data/mockData";
 
-type InboxTab = "relevant" | "irrelevant" | "wa_93554832" | "wa_93537640";
+type InboxTab = "relevant" | "irrelevant";
 
 const Index = () => {
   const { emails, isLoading, usingLiveData, updateStatus, setRelevant, bulkSetRelevant, bulkSetStatus } = useEmails();
@@ -52,10 +52,8 @@ const Index = () => {
   }, [emails]);
 
   const tabConfig: Record<InboxTab, { label: string; icon: typeof Inbox; emails: Email[]; emptyText: string; badge: number }> = {
-    relevant:    { label: "Relevant",     icon: MessageSquare, emails: relevant,   emptyText: "No messages", badge: 0 },
-    irrelevant:  { label: "Irrelevant",   icon: FilterIcon,    emails: irrelevant, emptyText: "No irrelevant messages", badge: 0 },
-    wa_93554832: { label: "WA 93554832",  icon: MessageCircle, emails: [],         emptyText: "No WhatsApp messages", badge: 0 },
-    wa_93537640: { label: "WA 93537640",  icon: MessageCircle, emails: [],         emptyText: "No WhatsApp messages", badge: 0 },
+    relevant:    { label: "Relevant",   icon: MessageSquare, emails: relevant,   emptyText: "No messages", badge: 0 },
+    irrelevant:  { label: "Irrelevant", icon: FilterIcon,    emails: irrelevant, emptyText: "No irrelevant messages", badge: 0 },
   };
 
   const visibleEmails = tabConfig[tab].emails;
@@ -87,6 +85,12 @@ const Index = () => {
           </Link>
           <Link to="/inbox" className="px-3 py-1.5 rounded-md text-sm font-medium bg-muted text-foreground">
             Emails
+          </Link>
+          <Link to="/wa/93554832" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            WA 93554832
+          </Link>
+          <Link to="/wa/93537640" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            WA 93537640
           </Link>
           <Link to="/audit-logs" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
             Audit Logs

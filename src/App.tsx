@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import AuditLogs from "./pages/AuditLogs";
+import WhatsApp from "./pages/WhatsApp";
 
 import NotFound from "./pages/NotFound";
 
@@ -20,6 +21,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/inbox" element={<Index />} />
+          <Route path="/wa/:number" element={<WhatsApp />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
