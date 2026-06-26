@@ -49,7 +49,7 @@ interface EmailListProps {
   onBulkApprove?: (ids: string[]) => void;
   onBulkEscalate?: (ids: string[], reason: string) => void;
   showWorkflowBulk?: boolean;
-  currentTab?: "relevant" | "irrelevant";
+  currentTab?: string;
   title?: string;
   onCollapse?: () => void;
 }

@@ -7,12 +7,12 @@ import { EmailDetail } from "@/components/EmailDetail";
 import { IrrelevantEmailView } from "@/components/IrrelevantEmailView";
 import {
   Bot, Inbox, Wifi, WifiOff, MessageSquare,
-  Filter as FilterIcon, ChevronRight, LayoutDashboard,
+  Filter as FilterIcon, ChevronRight, LayoutDashboard, MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Email } from "@/data/mockData";
 
-type InboxTab = "relevant" | "irrelevant";
+type InboxTab = "relevant" | "irrelevant" | "wa_93554832" | "wa_93537640";
 
 const Index = () => {
   const { emails, isLoading, usingLiveData, updateStatus, setRelevant, bulkSetRelevant, bulkSetStatus } = useEmails();
@@ -52,8 +52,10 @@ const Index = () => {
   }, [emails]);
 
   const tabConfig: Record<InboxTab, { label: string; icon: typeof Inbox; emails: Email[]; emptyText: string; badge: number }> = {
-    relevant:   { label: "Relevant",   icon: MessageSquare, emails: relevant,   emptyText: "No messages", badge: 0 },
-    irrelevant: { label: "Irrelevant", icon: FilterIcon,    emails: irrelevant, emptyText: "No irrelevant messages", badge: 0 },
+    relevant:    { label: "Relevant",     icon: MessageSquare, emails: relevant,   emptyText: "No messages", badge: 0 },
+    irrelevant:  { label: "Irrelevant",   icon: FilterIcon,    emails: irrelevant, emptyText: "No irrelevant messages", badge: 0 },
+    wa_93554832: { label: "WA 93554832",  icon: MessageCircle, emails: [],         emptyText: "No WhatsApp messages", badge: 0 },
+    wa_93537640: { label: "WA 93537640",  icon: MessageCircle, emails: [],         emptyText: "No WhatsApp messages", badge: 0 },
   };
 
   const visibleEmails = tabConfig[tab].emails;
@@ -84,7 +86,7 @@ const Index = () => {
             <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
           </Link>
           <Link to="/inbox" className="px-3 py-1.5 rounded-md text-sm font-medium bg-muted text-foreground">
-            Messages
+            Emails
           </Link>
           <Link to="/audit-logs" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
             Audit Logs
