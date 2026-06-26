@@ -7,7 +7,7 @@ import { EmailDetail } from "@/components/EmailDetail";
 import { IrrelevantEmailView } from "@/components/IrrelevantEmailView";
 import {
   Bot, Inbox, Wifi, WifiOff, MessageSquare,
-  Filter as FilterIcon, ChevronRight, LayoutDashboard,
+  Filter as FilterIcon, ChevronRight, LayoutDashboard, MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Email } from "@/data/mockData";
