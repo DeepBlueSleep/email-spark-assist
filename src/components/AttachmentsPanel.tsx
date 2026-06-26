@@ -107,22 +107,30 @@ function PreviewPlaceholder({ filename }: { filename: string }) {
   );
 }
 
-function Base64Preview({ base64, mimeType, filename }: { base64: string; mimeType: string; filename: string }) {
+function Base64Preview({ base64, mimeType, filename, zoom }: { base64: string; mimeType: string; filename: string; zoom: number }) {
   const cat = getFileCategory(filename);
   const dataUrl = `data:${mimeType};base64,${base64}`;
 
   if (cat === "image") {
     return (
-      <div className="flex items-center justify-center h-full p-4">
-        <img src={dataUrl} alt={filename} className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
+      <div className="w-full h-full overflow-auto p-4 flex items-start justify-center">
+        <img
+          src={dataUrl}
+          alt={filename}
+          style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
+          className="max-w-full object-contain rounded-lg shadow-sm transition-transform"
+        />
       </div>
     );
   }
 
   if (cat === "pdf") {
+    // Use PDF viewer #zoom param (supported by Chromium/Edge built-in viewer)
+    const pct = Math.round(zoom * 100);
     return (
       <iframe
-        src={dataUrl}
+        key={pct}
+        src={`${dataUrl}#zoom=${pct}`}
         title={filename}
         className="w-full h-full border-0 rounded-lg"
       />
