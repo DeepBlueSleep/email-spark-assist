@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { FileText, Paperclip, X, File, Image, FileSpreadsheet, ArrowLeft, FileType, Table2, ImageIcon, Loader2, Download } from "lucide-react";
+import { FileText, Paperclip, X, File, Image, FileSpreadsheet, ArrowLeft, FileType, Table2, ImageIcon, Loader2, Download, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { invokeFunction } from "@/lib/api";
 import { AttachmentMeta } from "@/data/mockData";
@@ -107,22 +107,30 @@ function PreviewPlaceholder({ filename }: { filename: string }) {
   );
 }
 
-function Base64Preview({ base64, mimeType, filename }: { base64: string; mimeType: string; filename: string }) {
+function Base64Preview({ base64, mimeType, filename, zoom }: { base64: string; mimeType: string; filename: string; zoom: number }) {
   const cat = getFileCategory(filename);
   const dataUrl = `data:${mimeType};base64,${base64}`;
 
   if (cat === "image") {
     return (
-      <div className="flex items-center justify-center h-full p-4">
-        <img src={dataUrl} alt={filename} className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
+      <div className="w-full h-full overflow-auto p-4 flex items-start justify-center">
+        <img
+          src={dataUrl}
+          alt={filename}
+          style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
+          className="max-w-full object-contain rounded-lg shadow-sm transition-transform"
+        />
       </div>
     );
   }
 
   if (cat === "pdf") {
+    // Use PDF viewer #zoom param (supported by Chromium/Edge built-in viewer)
+    const pct = Math.round(zoom * 100);
     return (
       <iframe
-        src={dataUrl}
+        key={pct}
+        src={`${dataUrl}#zoom=${pct}`}
         title={filename}
         className="w-full h-full border-0 rounded-lg"
       />
@@ -150,8 +158,10 @@ export function AttachmentsPanel({ attachments, attachmentsMeta, onClose }: Atta
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
   const [contentCache, setContentCache] = useState<Record<string, { base64: string; mime_type: string }>>({});
+  const [zoom, setZoom] = useState(1);
 
   const selectedFilename = selectedIndex !== null ? attachments[selectedIndex] : null;
+  const canZoom = selectedFilename ? ["pdf", "image"].includes(getFileCategory(selectedFilename)) : false;
 
   // Find matching meta for the selected attachment
   const getMetaForIndex = (idx: number): AttachmentMeta | undefined => {
@@ -162,6 +172,7 @@ export function AttachmentsPanel({ attachments, attachmentsMeta, onClose }: Atta
 
   const handleSelect = useCallback(async (idx: number) => {
     setSelectedIndex(idx);
+    setZoom(1);
     const meta = getMetaForIndex(idx);
     if (!meta) return; // No stored data, will show placeholder
 
@@ -222,6 +233,36 @@ export function AttachmentsPanel({ attachments, attachmentsMeta, onClose }: Atta
       {selectedFilename ? (
         /* Preview view */
         <div className="flex-1 flex flex-col min-h-0">
+          {canZoom && cachedContent?.base64 && (
+            <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-b border-border bg-muted/30">
+              <button
+                onClick={() => setZoom(z => Math.max(0.25, +(z - 0.25).toFixed(2)))}
+                disabled={zoom <= 0.25}
+                className="p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Zoom out"
+              >
+                <ZoomOut className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <span className="text-xs font-medium text-muted-foreground tabular-nums w-12 text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => setZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))}
+                disabled={zoom >= 4}
+                className="p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Zoom in"
+              >
+                <ZoomIn className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => setZoom(1)}
+                className="p-1.5 rounded-md hover:bg-muted transition-colors ml-1"
+                title="Reset zoom"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          )}
           <div className="flex-1 p-2 flex items-center justify-center bg-muted/20 min-h-[200px]">
             {loadingContent ? (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -233,6 +274,7 @@ export function AttachmentsPanel({ attachments, attachmentsMeta, onClose }: Atta
                 base64={cachedContent.base64}
                 mimeType={cachedContent.mime_type}
                 filename={selectedFilename}
+                zoom={zoom}
               />
             ) : (
               <PreviewPlaceholder filename={selectedFilename} />
