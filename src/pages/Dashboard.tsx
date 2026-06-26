@@ -152,6 +152,12 @@ const Dashboard = () => {
           <Link to="/inbox" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
             Emails
           </Link>
+          <Link to="/wa/93554832" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            WA 93554832
+          </Link>
+          <Link to="/wa/93537640" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            WA 93537640
+          </Link>
           <Link to="/audit-logs" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
             Audit Logs
           </Link>
