@@ -158,8 +158,10 @@ export function AttachmentsPanel({ attachments, attachmentsMeta, onClose }: Atta
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
   const [contentCache, setContentCache] = useState<Record<string, { base64: string; mime_type: string }>>({});
+  const [zoom, setZoom] = useState(1);
 
   const selectedFilename = selectedIndex !== null ? attachments[selectedIndex] : null;
+  const canZoom = selectedFilename ? ["pdf", "image"].includes(getFileCategory(selectedFilename)) : false;
 
   // Find matching meta for the selected attachment
   const getMetaForIndex = (idx: number): AttachmentMeta | undefined => {
