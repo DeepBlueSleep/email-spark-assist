@@ -86,7 +86,7 @@ const Index = () => {
             <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
           </Link>
           <Link to="/inbox" className="px-3 py-1.5 rounded-md text-sm font-medium bg-muted text-foreground">
-            Messages
+            Emails
           </Link>
           <Link to="/audit-logs" className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
             Audit Logs
