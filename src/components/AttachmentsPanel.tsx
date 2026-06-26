@@ -233,6 +233,36 @@ export function AttachmentsPanel({ attachments, attachmentsMeta, onClose }: Atta
       {selectedFilename ? (
         /* Preview view */
         <div className="flex-1 flex flex-col min-h-0">
+          {canZoom && cachedContent?.base64 && (
+            <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-b border-border bg-muted/30">
+              <button
+                onClick={() => setZoom(z => Math.max(0.25, +(z - 0.25).toFixed(2)))}
+                disabled={zoom <= 0.25}
+                className="p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Zoom out"
+              >
+                <ZoomOut className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <span className="text-xs font-medium text-muted-foreground tabular-nums w-12 text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => setZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))}
+                disabled={zoom >= 4}
+                className="p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Zoom in"
+              >
+                <ZoomIn className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => setZoom(1)}
+                className="p-1.5 rounded-md hover:bg-muted transition-colors ml-1"
+                title="Reset zoom"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          )}
           <div className="flex-1 p-2 flex items-center justify-center bg-muted/20 min-h-[200px]">
             {loadingContent ? (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -244,6 +274,7 @@ export function AttachmentsPanel({ attachments, attachmentsMeta, onClose }: Atta
                 base64={cachedContent.base64}
                 mimeType={cachedContent.mime_type}
                 filename={selectedFilename}
+                zoom={zoom}
               />
             ) : (
               <PreviewPlaceholder filename={selectedFilename} />
