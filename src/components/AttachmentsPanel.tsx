@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { FileText, Paperclip, X, File, Image, FileSpreadsheet, ArrowLeft, FileType, Table2, ImageIcon, Loader2, Download } from "lucide-react";
+import { FileText, Paperclip, X, File, Image, FileSpreadsheet, ArrowLeft, FileType, Table2, ImageIcon, Loader2, Download, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { invokeFunction } from "@/lib/api";
 import { AttachmentMeta } from "@/data/mockData";
